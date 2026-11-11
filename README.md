@@ -52,7 +52,7 @@ python -c "import xgboost, lightgbm, sklearn; print('OK')"
 
 ```
 data/        Datos (no se suben a GitHub)
-notebooks/   Exploración, EDA y modelos (01–09)
+notebooks/   Exploración, EDA y modelos (01a–01d, 02–09)
 src/         Código reutilizable (limpieza, preprocesamiento, BD…)
 app/         Aplicación Streamlit
 models/      Modelos entrenados
