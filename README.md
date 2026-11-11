@@ -11,10 +11,10 @@ Clasificación multiclase del segmento de precio (**Económico / Medio / Premium
 
 Los datos **no se suben a GitHub**. Descárgalos y guárdalos en `data/raw/`:
 
-| Archivo | Enlace |
-|---|---|
-| `listings.csv.gz` | [descargar](https://data.insideairbnb.com/spain/catalonia/barcelona/2026-09-17/data/listings.csv.gz) |
-| `neighbourhoods.geojson` | [descargar](https://data.insideairbnb.com/spain/catalonia/barcelona/2026-09-17/visualisations/neighbourhoods.geojson) |
+| Archivo | Para qué | Enlace |
+|---|---|---|
+| `listings.csv.gz` | Datos principales (EDA y modelos) | [descargar](https://data.insideairbnb.com/spain/catalonia/barcelona/2026-09-17/data/listings.csv.gz) |
+| `neighbourhoods.geojson` | Solo para dibujar el mapa de barrios | [descargar](https://data.insideairbnb.com/spain/catalonia/barcelona/2026-09-17/visualisations/neighbourhoods.geojson) |
 
 ## ⚙️ Instalación
 
