@@ -224,3 +224,6 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# Modelos entrenados (se generan con python -m src.train_app_model)
+models/*.joblib
