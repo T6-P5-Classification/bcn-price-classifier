@@ -29,3 +29,20 @@ extraer variables en feature engineering.
 - `has_reviews` se conserva de la limpieza (#7) para distinguir anuncios sin historial.
 - `days_since_last_review`, `days_since_first_review` y `review_span_days` usan por defecto `last_scraped` de cada fila; si se pasa `snapshot_date`, esa fecha se usa como referencia y las reseñas posteriores se convierten en `NaN`. Los nulos corresponden a anuncios sin reseñas.
 - `clean_listings()` realiza solo limpieza; `engineer_features()` realiza feature engineering por separado.
+
+## Split y target (#12)
+
+- `load_train_test()` resuelve la ruta por defecto desde `src/preprocessing.py`,
+  no desde el directorio de trabajo. Puede llamarse sin argumentos desde
+  `notebooks/` o desde la raíz del repositorio.
+- El split es 80/20, con `random_state=42`. Los bins provisionales de
+  `pd.qcut(price, q=3)` usan los precios de todo el dataset limpio únicamente
+  para estratificar la partición. Por tanto, test participa en la decisión
+  de partición; estos bins no son features ni el target final del modelo.
+- Los umbrales definitivos son los cuantiles 1/3 y 2/3 de `price_train`.
+  Se aplican sin recalcular a test: `Económico` si `price <= lower`,
+  `Medio` si `lower < price <= upper` y `Premium` si `price > upper`.
+- El retorno habitual contiene cuatro objetos. `return_thresholds=True`
+  permite recuperar los umbrales para guardarlos junto con el modelo.
+  `price` nunca entra en las features; la imputación, el escalado y el
+  encoding quedan fuera de #12.
