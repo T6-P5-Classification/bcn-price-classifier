@@ -1,0 +1,95 @@
+name: Daily Scrum
+
+on:
+  schedule:
+    - cron: "30 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Forzar creación aunque ya exista"
+        required: false
+        default: "false"
+
+permissions:
+  issues: write
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    env:
+      PLANTILLA: |
+        ## Daily Scrum — {{FECHA}} (semana {{SEMANA}})
+
+        Facilitador/a: **{{NOMBRE}}** (@{{USUARIO}})
+
+        ### Historial de la daily
+
+        | Etapa | Hora | Qué ha pasado | Responsable |
+        |---|---|---|---|
+        | Inicio |  |  |  |
+        | ¿Ha pasado algo? |  |  |  |
+        | Cierre |  |  |  |
+
+        ### Checklist
+
+        - [ ] Cada persona responde: qué hizo, qué hará, bloqueos
+        - [ ] Los bloqueos se convierten en issues con etiqueta `bloqueado`
+        - [ ] La tarjeta se mueve a `Cierre` y se cierra el issue
+    steps:
+      - name: Calcular fecha, semana y facilitador/a
+        id: calc
+        run: |
+          python3 - <<'PY'
+          import os
+          from datetime import date, datetime
+          from zoneinfo import ZoneInfo
+
+          tz = ZoneInfo("Europe/Madrid")
+          now = datetime.now(tz)
+          fecha = now.date().isoformat()
+          ancla = date(2026, 11, 16)
+          days = (now.date() - ancla).days
+          week = days // 7 + 1
+          nombres = ["David", "Esra", "Beste", "Miguel"]
+          usuarios = ["davidlafuentem", "esrakesken", "BesteOzaydin", "mmatesanzg23"]
+          idx = (days // 7) % len(nombres)
+          nombre = nombres[idx]
+          usuario = usuarios[idx]
+
+          body = os.environ["PLANTILLA"]
+          body = body.replace("{{FECHA}}", fecha)
+          body = body.replace("{{SEMANA}}", str(week))
+          body = body.replace("{{NOMBRE}}", nombre)
+          body = body.replace("{{USUARIO}}", usuario)
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"fecha={fecha}\n")
+              f.write(f"semana={week}\n")
+              f.write(f"nombre={nombre}\n")
+              f.write(f"usuario={usuario}\n")
+          with open("daily_body.md", "w", encoding="utf-8") as f:
+              f.write(body)
+          PY
+
+      - name: Crear etiquetas si no existen
+        run: |
+          gh label create daily --color 0E8A16 --description "Daily Scrum: ceremonia diaria del equipo" --repo "$GITHUB_REPOSITORY" || true
+          gh label create scrum --color 1D76DB --description "Scrum ceremony" --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Comprobar duplicado
+        id: dup
+        run: |
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --search "[Daily] ${{ steps.calc.outputs.fecha }} in:title" --json number --jq 'length')
+          echo "existing=$existing" >> "$GITHUB_OUTPUT"
+
+      - name: Crear issue daily
+        if: steps.dup.outputs.existing == '0' || inputs.forzar == 'true'
+        run: |
+          gh issue create \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "[Daily] ${{ steps.calc.outputs.fecha }}" \
+            --body-file daily_body.md \
+            --label daily \
+            --label scrum \
+            --assignee davidlafuentem,esrakesken,BesteOzaydin,mmatesanzg23
+PY
