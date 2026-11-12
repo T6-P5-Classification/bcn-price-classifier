@@ -105,3 +105,31 @@ def test_amenity_indicators_use_word_boundaries():
     assert featured.loc[0, "has_washer"] == 1
     assert featured.loc[1, "has_tv"] == 1
     assert featured.loc[1, "has_heating"] == 0
+
+
+def test_hair_and_clothes_dryer_are_separate():
+    df = pd.DataFrame(
+        {
+            "price": ["$100.00", "$120.00", "$130.00"],
+            "amenities": [
+                '["Hair dryer"]',
+                '["Dryer"]',
+                '["Dryer – In unit", "Free dryer"]',
+            ],
+            "bathrooms_text": ["1 bath", "1 bath", "1 bath"],
+            "hosts_time_as_host_years": [1.0, 1.0, 1.0],
+            "hosts_time_as_host_months": [0.0, 0.0, 0.0],
+            "number_of_reviews": [1, 1, 1],
+            "reviews_per_month": [1.0, 1.0, 1.0],
+            "last_review": ["2026-09-01", "2026-09-01", "2026-09-01"],
+            "first_review": ["2026-08-01", "2026-08-01", "2026-08-01"],
+            "last_scraped": ["2026-09-18", "2026-09-18", "2026-09-18"],
+        }
+    )
+    cleaned = clean_listings(df)
+    featured = engineer_features(cleaned)
+    assert featured.loc[0, "has_hair_dryer"] == 1
+    assert featured.loc[0, "has_clothes_dryer"] == 0
+    assert featured.loc[1, "has_hair_dryer"] == 0
+    assert featured.loc[1, "has_clothes_dryer"] == 1
+    assert featured.loc[2, "has_clothes_dryer"] == 1

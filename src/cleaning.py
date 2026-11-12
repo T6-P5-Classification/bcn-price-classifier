@@ -162,17 +162,18 @@ def select_map_view(listings: pd.DataFrame) -> pd.DataFrame:
 
 
 _KEY_AMENITIES = {
-    "air_conditioning": ("air conditioning", "air-conditioning"),
-    "heating": ("heating",),
-    "washer": ("washer",),
-    "dryer": ("dryer",),
-    "parking": ("parking",),
-    "self_checkin": ("self check-in", "self check in"),
-    "dedicated_workspace": ("dedicated workspace",),
-    "tv": ("tv", "television"),
-    "pool": ("pool",),
-    "elevator": ("elevator", "lift"),
-    "dishwasher": ("dishwasher",),
+    "air_conditioning": (("air conditioning", "air-conditioning"), ()),
+    "heating": (("heating",), ()),
+    "washer": (("washer",), ()),
+    "hair_dryer": (("hair dryer", "hairdryer"), ()),
+    "clothes_dryer": (("dryer",), ("hair",)),
+    "parking": (("parking",), ()),
+    "self_checkin": (("self check-in", "self check in"), ()),
+    "dedicated_workspace": (("dedicated workspace",), ()),
+    "tv": (("tv", "television"), ()),
+    "pool": (("pool",), ()),
+    "elevator": (("elevator", "lift"), ()),
+    "dishwasher": (("dishwasher",), ()),
 }
 
 
@@ -193,9 +194,22 @@ def _parse_amenity_list(value: object) -> list[str]:
     return [part.strip().strip("\"'") for part in text.strip("[]").split(",") if part.strip()]
 
 
-def _amenity_present(amenities: list[str], terms: tuple[str, ...]) -> int:
-    normalized = " ".join(str(item).lower() for item in amenities)
-    return int(any(re.search(rf"\b{re.escape(term)}\b", normalized) is not None for term in terms))
+def _amenity_present(
+    amenities: list[str],
+    include_terms: tuple[str, ...],
+    exclude_terms: tuple[str, ...] = (),
+) -> int:
+    for item in amenities:
+        normalized = str(item).lower()
+        if any(
+            re.search(rf"\b{re.escape(term)}\b", normalized) is not None
+            for term in include_terms
+        ) and not any(
+            re.search(rf"\b{re.escape(term)}\b", normalized) is not None
+            for term in exclude_terms
+        ):
+            return 1
+    return 0
 
 
 def _add_amenity_features(listings: pd.DataFrame) -> pd.DataFrame:
@@ -203,9 +217,11 @@ def _add_amenity_features(listings: pd.DataFrame) -> pd.DataFrame:
     if "amenities" in result.columns:
         amenity_lists = result["amenities"].map(_parse_amenity_list)
         result["amenities_count"] = amenity_lists.map(len).astype("int64")
-        for feature, terms in _KEY_AMENITIES.items():
+        for feature, (include_terms, exclude_terms) in _KEY_AMENITIES.items():
             result[f"has_{feature}"] = amenity_lists.map(
-                lambda items, terms=terms: _amenity_present(items, terms)
+                lambda items, include_terms=include_terms, exclude_terms=exclude_terms: _amenity_present(
+                    items, include_terms, exclude_terms
+                )
             ).astype("int8")
         result = result.drop(columns=["amenities"])
     elif "amenities_count" not in result.columns:
