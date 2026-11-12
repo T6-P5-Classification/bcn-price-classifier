@@ -1,4 +1,9 @@
-"""Train/test split and target creation shared by model notebooks."""
+"""Shared data preparation for the model notebooks.
+
+- load_train_test() (#12): load, clean, split and create the target.
+- build_preprocessor() (#13): unfitted ColumnTransformer, always used
+  inside a Pipeline so it learns only from train (or each CV training fold).
+"""
 
 from __future__ import annotations
 
@@ -7,7 +12,11 @@ from typing import TypedDict
 
 import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer, make_column_selector
+from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 from src.cleaning import clean_listings, engineer_features, select_model_features
 
@@ -105,3 +114,34 @@ def load_train_test(
     if return_thresholds:
         return (*result, thresholds)
     return result
+
+
+def build_preprocessor() -> ColumnTransformer:
+    """Numeric: median imputation + scaling. Categorical: mode + one-hot."""
+
+    numeric = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
+    categorical = Pipeline(
+        [
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            (
+                "encoder",
+                OneHotEncoder(
+                    handle_unknown="infrequent_if_exist",
+                    min_frequency=20,
+                    sparse_output=False,
+                ),
+            ),
+        ]
+    )
+    return ColumnTransformer(
+        [
+            ("num", numeric, make_column_selector(dtype_include="number")),
+            ("cat", categorical, make_column_selector(dtype_exclude="number")),
+        ],
+        verbose_feature_names_out=False,
+    )
