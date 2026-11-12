@@ -20,6 +20,11 @@
   no crear issues ni implementar entregables de otras personas sin permiso.
 - Revisar dependencias, asignaciones, PRs abiertas y archivos compartidos
   antes de empezar. Acordar contratos de integración y quién modifica qué.
+- Pedir permiso explícito al usuario antes de vincular dos PR, incluso al
+  mencionar el número o URL de otra PR en descripciones, comentarios o
+  documentos que puedan generar referencias cruzadas en GitHub. No crear
+  esas conexiones por iniciativa propia para explicar que son independientes.
+  Mantener las dailies y su bitácora separadas de entregas no relacionadas.
 - Usar `dev` como base de integración actual: comprobar su estado remoto,
   actualizarla sin descartar trabajo y crear una rama dedicada desde ella.
   Dirigir las PRs a `dev`, salvo cambio acordado por el equipo.
