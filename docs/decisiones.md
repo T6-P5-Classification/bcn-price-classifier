@@ -17,3 +17,12 @@ También se excluyen las columnas completamente vacías del snapshot, además de
 `source` (75,75 % nulo y un único valor) y `description` (texto libre de alta
 cardinalidad). `bathrooms` está vacía, pero `bathrooms_text` se conserva para
 extraer variables en feature engineering.
+
+## Feature engineering
+
+- `amenities` se resume en `amenities_count` y en indicadores `has_*` solo para amenities con impacto práctico en el precio; se excluyen `wifi` (casi constante), `kitchen` y `private_entrance` por impacto nulo.
+- `bathrooms_text` se convierte en `bathrooms_count` (`Half-bath` = 0.5) y en `is_shared_bathroom` / `is_private_bathroom`.
+- `host_tenure_years` se calcula a partir de `hosts_time_as_host_years/months`; en este snapshot `host_since` está vacío.
+- `has_reviews` se conserva de la limpieza (#7) para distinguir anuncios sin historial.
+- `days_since_last_review`, `days_since_first_review` y `review_span_days` usan la fecha del snapshot (17/09/2026); los nulos corresponden a anuncios sin reseñas.
+- `engineer_features()` es idempotente e integrada en `clean_listings()` para que los siguientes notebooks usen las nuevas variables automáticamente.
