@@ -12,7 +12,9 @@ from sklearn.model_selection import train_test_split
 from src.cleaning import clean_listings, engineer_features, select_model_features
 
 
-RAW_DATA_PATH = Path("data/raw/listings.csv.gz")
+RAW_DATA_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "raw" / "listings.csv.gz"
+)
 TARGET_LABELS = ("Económico", "Medio", "Premium")
 
 

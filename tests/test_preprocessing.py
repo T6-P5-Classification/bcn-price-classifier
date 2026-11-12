@@ -1,7 +1,10 @@
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
 from src.preprocessing import (
+    RAW_DATA_PATH,
     TARGET_LABELS,
     compute_target_thresholds,
     create_price_target,
@@ -44,3 +47,25 @@ def test_load_train_test_is_stratified_and_excludes_price(tmp_path):
     assert set(y_train.unique()) == set(TARGET_LABELS)
     assert set(y_test.unique()) == set(TARGET_LABELS)
     assert thresholds["lower"] < thresholds["upper"]
+
+
+def test_default_data_path_is_independent_of_working_directory(tmp_path, monkeypatch):
+    expected_path = (
+        Path(__file__).resolve().parents[1] / "data" / "raw" / "listings.csv.gz"
+    )
+    raw = pd.DataFrame({"price": [f"${value:.2f}" for value in range(10, 70)]})
+
+    def read_csv(path, **kwargs):
+        assert path == expected_path
+        assert path.is_absolute()
+        return raw.copy()
+
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    monkeypatch.chdir(notebooks)
+    monkeypatch.setattr(pd, "read_csv", read_csv)
+
+    assert RAW_DATA_PATH == expected_path
+    X_train, X_test, y_train, y_test = load_train_test()
+    assert len(X_train) == len(y_train) == 48
+    assert len(X_test) == len(y_test) == 12
