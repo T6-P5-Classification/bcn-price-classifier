@@ -1,95 +1,215 @@
+# Daily Scrum automática: una tarjeta por equipo y día, de lunes a viernes.
+#
+# Qué hace:
+#   1. Calcula la fecha, la semana ISO y el facilitador/a de la semana (rotación David → Esra → Beste → Miguel).
+#   2. Crea las etiquetas `daily` y `scrum` si no existen.
+#   3. Comprueba que no exista ya la daily de hoy (salvo que se lance con `forzar`).
+#   4. Crea el issue con la plantilla de la rutina y asigna a las cuatro personas.
+#
+# El Project NO se toca desde aquí: no se usa PAT ni el scope `project`.
+# La tarjeta entra sola en el Project con el workflow integrado "Auto-add to project".
+# Configuración del tablero, vistas y filtros: docs/Dailies/DAILY_TEMPL.md
+#
+# Columnas de la vista `Dailies` (campo `Estado daily`): Inicio / ¿Ha pasado algo? / Cierre.
+# `Inicio` lo pone el valor por defecto del campo; los otros dos se arrastran a mano.
 name: Daily Scrum
 
 on:
   schedule:
+    # 06:30 UTC = 08:30 en Madrid en verano (CEST) y 07:30 en invierno (CET).
     - cron: "30 6 * * 1-5"
   workflow_dispatch:
     inputs:
       forzar:
-        description: "Forzar creación aunque ya exista"
-        required: false
-        default: "false"
+        description: "Crear la daily aunque ya exista la de hoy"
+        type: boolean
+        default: false
 
 permissions:
+  contents: read
   issues: write
 
+# Sin solapes: si una ejecución se alarga, la siguiente espera en cola.
+concurrency:
+  group: daily-scrum
+  cancel-in-progress: false
+
+env:
+  # Plantilla del cuerpo de la tarjeta. Marcadores: {{FECHA}}, {{SEMANA}}, {{NOMBRE}}, {{USUARIO}}.
+  PLANTILLA: |
+    **Equipo:** David (`davidlafuentem`) · Esra (`esrakesken`) · Beste (`BesteOzaydin`) · Miguel (`mmatesanzg23`)
+
+    **Fecha:** {{FECHA}} · **Semana ISO:** {{SEMANA}} · **Sprint:** _(rellenar si aplica)_
+    **Facilitador/a de la semana:** {{NOMBRE}} (@{{USUARIO}}) · **Duración:** 15 min
+
+    **Tablero:** [Projects del repo](https://github.com/orgs/T6-P5-Classification/projects/3)
+    **Regla:** una tarea del tablero = un flujo (o parte) = una rama = una PR.
+
+    > **Cómo se mueve esta tarjeta.** Vive en la vista `Dailies` del Project, no en el tablero.
+    > Al empezar la ronda, arrástrala de `Inicio` a `¿Ha pasado algo?`; al terminar, a `Cierre`.
+    > Las tareas se mueven solas (`Status`); las dailys se mueven a mano (`Estado daily`).
+
+    ## Tabla de la daily
+
+    | Colaborador | Ayer | Hoy | Bloqueos |
+    |---|---|---|---|
+    | David (`davidlafuentem`) | | | |
+    | Esra (`esrakesken`) | | | |
+    | Beste (`BesteOzaydin`) | | | |
+    | Miguel (`mmatesanzg23`) | | | |
+
+    ## Antes de la daily (5 min, en asíncrono)
+
+    - [ ] Mi tarjeta está en la columna real del `tablero`
+    - [ ] He revisado mis PRs y el estado de la CI
+    - [ ] He revisado los issues con etiqueta `bloqueado`
+    - [ ] La spec de mi feature tiene el `Estado:` correcto
+
+    ## Durante la daily (15 min)
+
+    - [ ] Cada persona ha contado ayer / hoy / bloqueos (máx. 2 min)
+    - [ ] Los bloqueos tienen issue y responsable
+    - [ ] Hemos acordado el objetivo del día
+
+    ## Rutina por rol (rota por feature)
+
+    - [ ] **Dueño/a de la spec:** resuelvo los `<<PENDIENTE>>`, muevo la spec a Aprobada y aviso al equipo
+    - [ ] **Constructor/a:** plan y tasks al día, JSON en `workflows/` con `active: false` y fixtures probados
+    - [ ] **Revisor/a:** `/revisar-flujo` pasado, sin secretos ni datos personales, PR aprobada
+
+    ## Acuerdos y siguientes pasos
+
+    | Acuerdo | Responsable | Fecha |
+    |---|---|---|
+    | | | |
+
+    ## Bloqueos abiertos
+
+    _(uno por línea, con issue y responsable; si no hay, escribe "Ninguno")_
+
+    ## Historial de la daily
+
+    _Una fila por transición, para que el recorrido quede escrito aunque el campo cambie._
+
+    | Etapa | Hora | Qué ha pasado | Responsable |
+    |---|---|---|---|
+    | Inicio | | | |
+    | ¿Ha pasado algo? | | | |
+    | Cierre | | | |
+
+    ## Después de la daily (5 min)
+
+    - [ ] Tarjetas movidas y con responsable
+    - [ ] WIP respetado (máx. 1 feature en curso por persona)
+    - [ ] Cada PR tiene revisor distinto de quien construye
+    - [ ] Si se usó IA, queda anotado para `/bitacora`
+
+    ## Viernes (si aplica)
+
+    - [ ] Refinamiento del backlog
+    - [ ] Revisión del sprint
+    - [ ] Retrospectiva breve
+    - [ ] Confirmar la rotación del facilitador/a para la semana siguiente
+
+    ## Reglas que no se negocian
+
+    - Spec `Aprobada` antes de construir.
+    - Una feature = una rama = una PR.
+    - Sin credenciales ni datos personales en el repo.
+    - Los importes los da la app; no se recalculan.
+    - Revisión humana obligatoria antes de mergear.
+
+    ---
+    _Creada automáticamente por `.github/workflows/daily-scrum.yml` · rutina en [`docs/Dailies/DAILY_TEMPL.md`](https://github.com/T6-P5-Classification/bcn-price-classifier/blob/dev/docs/Dailies/DAILY_TEMPL.md). Al terminar la daily: mueve la tarjeta a `Cierre` y cierra el issue._
+
 jobs:
-  daily:
+  crear-daily:
+    name: Crear la tarjeta de la daily
     runs-on: ubuntu-latest
-    env:
-      PLANTILLA: |
-        ## Daily Scrum — {{FECHA}} (semana {{SEMANA}})
-
-        Facilitador/a: **{{NOMBRE}}** (@{{USUARIO}})
-
-        ### Historial de la daily
-
-        | Etapa | Hora | Qué ha pasado | Responsable |
-        |---|---|---|---|
-        | Inicio |  |  |  |
-        | ¿Ha pasado algo? |  |  |  |
-        | Cierre |  |  |  |
-
-        ### Checklist
-
-        - [ ] Cada persona responde: qué hizo, qué hará, bloqueos
-        - [ ] Los bloqueos se convierten en issues con etiqueta `bloqueado`
-        - [ ] La tarjeta se mueve a `Cierre` y se cierra el issue
+    timeout-minutes: 5
     steps:
       - name: Calcular fecha, semana y facilitador/a
-        id: calc
+        id: datos
         run: |
-          python3 - <<'PY'
-          import os
-          from datetime import date, datetime
-          from zoneinfo import ZoneInfo
+          set -euo pipefail
+          export TZ=Europe/Madrid
+          fecha=$(date +%F)
+          semana=$(date +%V)
+          # Rotación semanal: David → Esra → Beste → Miguel.
+          # Ancla: lunes 2026-11-16 (semana 1 = David). Si el proyecto arranca otro día, cambiar esta fecha.
+          ancla=$(date -d "2026-11-16" +%s)
+          hoy=$(date -d "$fecha" +%s)
+          semanas=$(( (hoy - ancla) / 604800 ))
+          idx=$(( (semanas % 4 + 4) % 4 ))
+          nombres=("David" "Esra" "Beste" "Miguel")
+          usuarios=("davidlafuentem" "esrakesken" "BesteOzaydin" "mmatesanzg23")
+          asignados=$(IFS=,; echo "${usuarios[*]}")
+          {
+            echo "fecha=$fecha"
+            echo "semana=$semana"
+            echo "nombre=${nombres[$idx]}"
+            echo "usuario=${usuarios[$idx]}"
+            echo "asignados=$asignados"
+          } >> "$GITHUB_OUTPUT"
+          echo "Daily de $fecha · semana ISO $semana · facilitador/a: ${nombres[$idx]} (${usuarios[$idx]})"
 
-          tz = ZoneInfo("Europe/Madrid")
-          now = datetime.now(tz)
-          fecha = now.date().isoformat()
-          ancla = date(2026, 11, 16)
-          days = (now.date() - ancla).days
-          week = days // 7 + 1
-          nombres = ["David", "Esra", "Beste", "Miguel"]
-          usuarios = ["davidlafuentem", "esrakesken", "BesteOzaydin", "mmatesanzg23"]
-          idx = (days // 7) % len(nombres)
-          nombre = nombres[idx]
-          usuario = usuarios[idx]
-
-          body = os.environ["PLANTILLA"]
-          body = body.replace("{{FECHA}}", fecha)
-          body = body.replace("{{SEMANA}}", str(week))
-          body = body.replace("{{NOMBRE}}", nombre)
-          body = body.replace("{{USUARIO}}", usuario)
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
-              f.write(f"fecha={fecha}\n")
-              f.write(f"semana={week}\n")
-              f.write(f"nombre={nombre}\n")
-              f.write(f"usuario={usuario}\n")
-          with open("daily_body.md", "w", encoding="utf-8") as f:
-              f.write(body)
-          PY
-
-      - name: Crear etiquetas si no existen
+      - name: Crear las etiquetas si no existen
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh label create daily --color 0E8A16 --description "Daily Scrum: ceremonia diaria del equipo" --repo "$GITHUB_REPOSITORY" || true
-          gh label create scrum --color 1D76DB --description "Scrum ceremony" --repo "$GITHUB_REPOSITORY" || true
+          set -euo pipefail
+          gh label create daily \
+            --color 0E8A16 \
+            --description "Daily Scrum: ceremonia diaria del equipo" \
+            --force
+          gh label create scrum \
+            --color 5319E7 \
+            --description "Ceremonias y artefactos Scrum" \
+            --force
 
-      - name: Comprobar duplicado
-        id: dup
+      - name: Comprobar que no exista ya la daily de hoy
+        id: existe
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FECHA: ${{ steps.datos.outputs.fecha }}
+          FORZAR: ${{ inputs.forzar }}
         run: |
-          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --search "[Daily] ${{ steps.calc.outputs.fecha }} in:title" --json number --jq 'length')
-          echo "existing=$existing" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if [ "$FORZAR" = "true" ]; then
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+            echo "Ejecución forzada: se crea una tarjeta nueva aunque exista la de hoy."
+            exit 0
+          fi
+          if gh issue list --label daily --state all --limit 100 \
+              --json title --jq '.[].title' | grep -Fxq "[Daily] $FECHA"; then
+            echo "existe=true" >> "$GITHUB_OUTPUT"
+            echo "La daily de $FECHA ya existe; no se crea otra."
+          else
+            echo "existe=false" >> "$GITHUB_OUTPUT"
+            echo "No hay daily de $FECHA; se crea."
+          fi
 
-      - name: Crear issue daily
-        if: steps.dup.outputs.existing == '0' || inputs.forzar == 'true'
+      - name: Crear la tarjeta de la daily
+        if: steps.existe.outputs.existe != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FECHA: ${{ steps.datos.outputs.fecha }}
+          SEMANA: ${{ steps.datos.outputs.semana }}
+          NOMBRE: ${{ steps.datos.outputs.nombre }}
+          USUARIO: ${{ steps.datos.outputs.usuario }}
+          ASIGNADOS: ${{ steps.datos.outputs.asignados }}
         run: |
+          set -euo pipefail
+          printf '%s\n' "$PLANTILLA" > daily.md
+          sed -i \
+            -e "s|{{FECHA}}|$FECHA|g" \
+            -e "s|{{SEMANA}}|$SEMANA|g" \
+            -e "s|{{NOMBRE}}|$NOMBRE|g" \
+            -e "s|{{USUARIO}}|$USUARIO|g" \
+            daily.md
           gh issue create \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "[Daily] ${{ steps.calc.outputs.fecha }}" \
-            --body-file daily_body.md \
+            --title "[Daily] $FECHA" \
+            --body-file daily.md \
             --label daily \
             --label scrum \
-            --assignee davidlafuentem,esrakesken,BesteOzaydin,mmatesanzg23
-PY
+            --assignee "$ASIGNADOS"
