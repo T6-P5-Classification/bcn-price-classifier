@@ -12,3 +12,8 @@ sin coordenadas, para detectar posible sobreajuste geográfico.
 
 Las vistas `model_df` y `map_df` se generan desde el mismo `cleaned_df`; no se
 mantienen dos datasets físicos.
+
+También se excluyen las columnas completamente vacías del snapshot, además de
+`source` (75,75 % nulo y un único valor) y `description` (texto libre de alta
+cardinalidad). `bathrooms` está vacía, pero `bathrooms_text` se conserva para
+extraer variables en feature engineering.
