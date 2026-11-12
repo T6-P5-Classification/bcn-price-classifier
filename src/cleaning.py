@@ -14,8 +14,9 @@ import pandas as pd
 
 # Identifiers, personal/free-text fields, snapshot metadata, and variables
 # derived from price or revenue must not enter model training. Coordinates are
-# intentionally not removed from the cleaned source: they remain available to
-# the map view while ``select_model_features`` excludes them from the model.
+# retained because they can capture fine-grained location effects on price and
+# are also needed by the map view. Their contribution should be checked with
+# an ablation comparison against a model without coordinates.
 MODEL_EXCLUDED_COLUMNS = frozenset(
     {
         "id",
@@ -35,8 +36,6 @@ MODEL_EXCLUDED_COLUMNS = frozenset(
         "host_location",
         "license",
         "neighbourhood",
-        "latitude",
-        "longitude",
         "price",
         "price_quote_checkin_date",
         "price_quote_checkout_date",
