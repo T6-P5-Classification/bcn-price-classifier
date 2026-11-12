@@ -64,6 +64,26 @@ def test_future_review_dates_become_nan():
     assert featured["days_since_last_review"].isna().all()
 
 
+def test_clean_listings_does_not_create_features():
+    df = pd.DataFrame(
+        {
+            "price": ["$100.00"],
+            "amenities": ['["Heating"]'],
+            "bathrooms_text": ["1 bath"],
+            "hosts_time_as_host_years": [1.0],
+            "hosts_time_as_host_months": [0.0],
+            "number_of_reviews": [1],
+            "reviews_per_month": [1.0],
+            "last_review": ["2026-09-01"],
+            "first_review": ["2026-08-01"],
+            "last_scraped": ["2026-09-18"],
+        }
+    )
+    cleaned = clean_listings(df)
+    assert "amenities_count" not in cleaned.columns
+    assert "days_since_last_review" not in cleaned.columns
+
+
 def test_amenity_indicators_use_word_boundaries():
     df = pd.DataFrame(
         {
