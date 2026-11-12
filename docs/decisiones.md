@@ -27,4 +27,5 @@ extraer variables en feature engineering.
 - `host_tenure_years` se calcula a partir de `hosts_time_as_host_years/months`; en este snapshot `host_since` está vacío.
 - `has_reviews` se conserva de la limpieza (#7) para distinguir anuncios sin historial.
 - `days_since_last_review`, `days_since_first_review` y `review_span_days` usan la fecha del snapshot (17/09/2026); los nulos corresponden a anuncios sin reseñas.
-- `engineer_features()` es idempotente e integrada en `clean_listings()` para que los siguientes notebooks usen las nuevas variables automáticamente.
+- `clean_listings()` realiza solo limpieza; `engineer_features()` realiza feature engineering por separado.
+- La fecha de referencia para reseñas usa por defecto `last_scraped` de cada fila para evitar fechas futuras; también admite `snapshot_date` explícito.

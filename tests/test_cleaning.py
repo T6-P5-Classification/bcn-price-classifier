@@ -62,3 +62,26 @@ def test_future_review_dates_become_nan():
     cleaned = clean_listings(df)
     featured = engineer_features(cleaned, snapshot_date="2026-09-18")
     assert featured["days_since_last_review"].isna().all()
+
+
+def test_amenity_indicators_use_word_boundaries():
+    df = pd.DataFrame(
+        {
+            "price": ["$100.00", "$120.00"],
+            "amenities": ['["Heating", "Washer"]', '["TV"]'],
+            "bathrooms_text": ["1 bath", "1 bath"],
+            "hosts_time_as_host_years": [1.0, 1.0],
+            "hosts_time_as_host_months": [0.0, 0.0],
+            "number_of_reviews": [1, 1],
+            "reviews_per_month": [1.0, 1.0],
+            "last_review": ["2026-09-01", "2026-09-01"],
+            "first_review": ["2026-08-01", "2026-08-01"],
+            "last_scraped": ["2026-09-18", "2026-09-18"],
+        }
+    )
+    cleaned = clean_listings(df)
+    featured = engineer_features(cleaned)
+    assert featured.loc[0, "has_heating"] == 1
+    assert featured.loc[0, "has_washer"] == 1
+    assert featured.loc[1, "has_tv"] == 1
+    assert featured.loc[1, "has_heating"] == 0

@@ -195,7 +195,7 @@ def _parse_amenity_list(value: object) -> list[str]:
 
 def _amenity_present(amenities: list[str], terms: tuple[str, ...]) -> int:
     normalized = " ".join(str(item).lower() for item in amenities)
-    return int(any(re.search(rf"\\b{re.escape(term)}\\b", normalized) is not None for term in terms))
+    return int(any(re.search(rf"\b{re.escape(term)}\b", normalized) is not None for term in terms))
 
 
 def _add_amenity_features(listings: pd.DataFrame) -> pd.DataFrame:
