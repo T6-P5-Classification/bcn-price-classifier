@@ -21,6 +21,7 @@ extraer variables en feature engineering.
 ## Feature engineering
 
 - `amenities` se resume en `amenities_count` y en indicadores `has_*` solo para amenities con impacto práctico en el precio. Se excluyen `wifi` (prevalencia 97.9%, casi constante), `kitchen` (+0.4%, p=0.27) y `private_entrance` (-1.0%, p=0.87) por falta de impacto práctico.
+- `has_dryer` se sustituye por `has_hair_dryer` y `has_clothes_dryer`, detectando cada amenity por separado para evitar confundir "Hair dryer" con una secadora de ropa.
 - `property_type` se mantiene como variable categórica para el pipeline; no se agrupa en #9.
 - La fecha de referencia para reseñas es configurable en `engineer_features(snapshot_date=...)`; por defecto usa `last_scraped` por fila para evitar fechas futuras.
 - `bathrooms_text` se convierte en `bathrooms_count` (`Half-bath` = 0.5) y en `is_shared_bathroom` / `is_private_bathroom`.
