@@ -12,6 +12,64 @@ import numpy as np
 import pandas as pd
 
 
+# Identifiers, personal/free-text fields, snapshot metadata, and variables
+# derived from price or revenue must not enter model training. Coordinates are
+# retained because they can capture fine-grained location effects on price and
+# are also needed by the map view. Their contribution should be checked with
+# an ablation comparison against a model without coordinates.
+MODEL_EXCLUDED_COLUMNS = frozenset(
+    {
+        "id",
+        "listing_url",
+        "scrape_id",
+        "name",
+        "picture_url",
+        "host_id",
+        "host_url",
+        "host_profile_id",
+        "host_profile_url",
+        "host_name",
+        "host_about",
+        "host_thumbnail_url",
+        "host_picture_url",
+        "host_neighbourhood",
+        "host_location",
+        "license",
+        "neighbourhood",
+        "neighborhood_overview",
+        "host_since",
+        "host_response_time",
+        "host_response_rate",
+        "host_acceptance_rate",
+        "host_total_listings_count",
+        "host_verifications",
+        "bathrooms",
+        "instant_bookable",
+        "source",
+        "description",
+        "price",
+        "price_quote_checkin_date",
+        "price_quote_checkout_date",
+        "price_quote_total_price",
+        "price_quote_price_per_night",
+        "price_quote_raw",
+        "estimated_revenue_l365d",
+        "last_scraped",
+        "calendar_updated",
+        "calendar_last_scraped",
+    }
+)
+
+MAP_COLUMNS = (
+    "latitude",
+    "longitude",
+    "neighbourhood_cleansed",
+    "neighbourhood_group_cleansed",
+    "price",
+    "price_segment",
+)
+
+
 def parse_price(price: pd.Series) -> pd.Series:
     """Convert Airbnb currency strings to numeric euros.
 
@@ -71,3 +129,25 @@ def clean_listings(listings: pd.DataFrame) -> pd.DataFrame:
         cleaned.loc[no_reviews, "reviews_per_month"] = 0.0
 
     return cleaned
+
+
+def select_model_features(listings: pd.DataFrame) -> pd.DataFrame:
+    """Return model features without identifiers, coordinates, or leakage.
+
+    The target source ``price`` is excluded here, after cleaning has made it
+    available for target construction. Missing columns are ignored so this
+    function can be used before optional target columns are added.
+    """
+
+    return listings.drop(columns=list(MODEL_EXCLUDED_COLUMNS), errors="ignore").copy()
+
+
+def select_map_view(listings: pd.DataFrame) -> pd.DataFrame:
+    """Return the location/price view used by the map notebook.
+
+    This is a view in memory, not a second persisted dataset. Coordinates are
+    retained for visualization only and never passed to model training.
+    """
+
+    columns = [column for column in MAP_COLUMNS if column in listings.columns]
+    return listings.loc[:, columns].copy()
