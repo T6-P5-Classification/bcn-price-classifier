@@ -135,16 +135,16 @@ def clean_listings(listings: pd.DataFrame) -> pd.DataFrame:
         ].isna()
         cleaned.loc[no_reviews, "reviews_per_month"] = 0.0
 
-    cleaned = engineer_features(cleaned)
     return cleaned
 
 
 def select_model_features(listings: pd.DataFrame) -> pd.DataFrame:
-    """Return model features without identifiers, coordinates, or leakage.
+    """Return model features without identifiers or leakage.
 
-    The target source ``price`` is excluded here, after cleaning has made it
-    available for target construction. Missing columns are ignored so this
-    function can be used before optional target columns are added.
+    ``price`` is excluded here, after cleaning has made it available for target
+    construction. Coordinates are intentionally retained for the model. Missing
+    columns are ignored so this function can be used before optional target
+    columns are added.
     """
 
     return listings.drop(columns=list(MODEL_EXCLUDED_COLUMNS), errors="ignore").copy()
@@ -154,7 +154,7 @@ def select_map_view(listings: pd.DataFrame) -> pd.DataFrame:
     """Return the location/price view used by the map notebook.
 
     This is a view in memory, not a second persisted dataset. Coordinates are
-    retained for visualization only and never passed to model training.
+    retained for visualization and are also available to model training.
     """
 
     columns = [column for column in MAP_COLUMNS if column in listings.columns]
@@ -195,7 +195,7 @@ def _parse_amenity_list(value: object) -> list[str]:
 
 def _amenity_present(amenities: list[str], terms: tuple[str, ...]) -> int:
     normalized = " ".join(str(item).lower() for item in amenities)
-    return int(any(term in normalized for term in terms))
+    return int(any(re.search(rf"\\b{re.escape(term)}\\b", normalized) is not None for term in terms))
 
 
 def _add_amenity_features(listings: pd.DataFrame) -> pd.DataFrame:
@@ -254,38 +254,65 @@ def _add_host_features(listings: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
-_SNAPSHOT_DATE = pd.Timestamp("2026-09-17")
-
-
-def _add_review_features(listings: pd.DataFrame) -> pd.DataFrame:
+def _add_review_features(
+    listings: pd.DataFrame, snapshot_date: pd.Timestamp | str | None = None
+) -> pd.DataFrame:
     result = listings.copy()
+    reference = (
+        pd.to_datetime(snapshot_date, errors="coerce")
+        if snapshot_date is not None
+        else None
+    )
+
     if "last_review" in result.columns:
         last_review = pd.to_datetime(result["last_review"], errors="coerce")
-        result["days_since_last_review"] = (_SNAPSHOT_DATE - last_review).dt.days
+        if reference is None and "last_scraped" in result.columns:
+            reference = pd.to_datetime(result["last_scraped"], errors="coerce")
+        if reference is None:
+            reference = pd.Timestamp("2026-09-18")
+        if isinstance(reference, pd.Timestamp):
+            days = (reference - last_review).dt.days
+        else:
+            days = (reference - last_review).dt.days
+        if snapshot_date is not None:
+            days = days.where(last_review <= reference)
+        result["days_since_last_review"] = days
+        assert result["days_since_last_review"].dropna().ge(0).all()
+
     if "first_review" in result.columns:
         first_review = pd.to_datetime(result["first_review"], errors="coerce")
-        result["days_since_first_review"] = (_SNAPSHOT_DATE - first_review).dt.days
+        if reference is None and "last_scraped" in result.columns:
+            reference = pd.to_datetime(result["last_scraped"], errors="coerce")
+        if reference is None:
+            reference = pd.Timestamp("2026-09-18")
+        if isinstance(reference, pd.Timestamp):
+            days = (reference - first_review).dt.days
+        else:
+            days = (reference - first_review).dt.days
+        if snapshot_date is not None:
+            days = days.where(first_review <= reference)
+        result["days_since_first_review"] = days
+
     if {"first_review", "last_review"}.issubset(result.columns):
         first_review = pd.to_datetime(result["first_review"], errors="coerce")
         last_review = pd.to_datetime(result["last_review"], errors="coerce")
         result["review_span_days"] = (last_review - first_review).dt.days
+
     if "has_reviews" not in result.columns and "number_of_reviews" in result.columns:
         result["has_reviews"] = result["number_of_reviews"].gt(0).astype("int8")
+
     result = result.drop(columns=["first_review", "last_review"], errors="ignore")
     return result
 
 
-def engineer_features(listings: pd.DataFrame) -> pd.DataFrame:
+def engineer_features(
+    listings: pd.DataFrame, snapshot_date: pd.Timestamp | str | None = None
+) -> pd.DataFrame:
     """Add model-ready features derived from amenities, bathrooms and host data."""
 
     result = listings.copy()
     result = _add_amenity_features(result)
     result = _add_bathroom_features(result)
     result = _add_host_features(result)
-    result = _add_review_features(result)
+    result = _add_review_features(result, snapshot_date=snapshot_date)
     return result
-
-
-engineer_listing_features = engineer_features
-add_engineered_features = engineer_features
-create_features = engineer_features
