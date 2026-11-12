@@ -8,6 +8,9 @@ training pipeline, except for fields with an unambiguous domain meaning.
 
 from __future__ import annotations
 
+import ast
+import re
+
 import numpy as np
 import pandas as pd
 
@@ -47,6 +50,10 @@ MODEL_EXCLUDED_COLUMNS = frozenset(
         "instant_bookable",
         "source",
         "description",
+        "amenities",
+        "bathrooms_text",
+        "first_review",
+        "last_review",
         "price",
         "price_quote_checkin_date",
         "price_quote_checkout_date",
@@ -132,11 +139,12 @@ def clean_listings(listings: pd.DataFrame) -> pd.DataFrame:
 
 
 def select_model_features(listings: pd.DataFrame) -> pd.DataFrame:
-    """Return model features without identifiers, coordinates, or leakage.
+    """Return model features without identifiers or leakage.
 
-    The target source ``price`` is excluded here, after cleaning has made it
-    available for target construction. Missing columns are ignored so this
-    function can be used before optional target columns are added.
+    ``price`` is excluded here, after cleaning has made it available for target
+    construction. Coordinates are intentionally retained for the model. Missing
+    columns are ignored so this function can be used before optional target
+    columns are added.
     """
 
     return listings.drop(columns=list(MODEL_EXCLUDED_COLUMNS), errors="ignore").copy()
@@ -146,8 +154,181 @@ def select_map_view(listings: pd.DataFrame) -> pd.DataFrame:
     """Return the location/price view used by the map notebook.
 
     This is a view in memory, not a second persisted dataset. Coordinates are
-    retained for visualization only and never passed to model training.
+    retained for visualization and are also available to model training.
     """
 
     columns = [column for column in MAP_COLUMNS if column in listings.columns]
     return listings.loc[:, columns].copy()
+
+
+_KEY_AMENITIES = {
+    "air_conditioning": (("air conditioning", "air-conditioning"), ()),
+    "heating": (("heating",), ()),
+    "washer": (("washer",), ()),
+    "hair_dryer": (("hair dryer", "hairdryer"), ()),
+    "clothes_dryer": (("dryer",), ("hair",)),
+    "parking": (("parking",), ()),
+    "self_checkin": (("self check-in", "self check in"), ()),
+    "dedicated_workspace": (("dedicated workspace",), ()),
+    "tv": (("tv", "television"), ()),
+    "pool": (("pool",), ()),
+    "elevator": (("elevator", "lift"), ()),
+    "dishwasher": (("dishwasher",), ()),
+}
+
+
+def _parse_amenity_list(value: object) -> list[str]:
+    if isinstance(value, list):
+        return [str(item).strip() for item in value if str(item).strip()]
+    if pd.isna(value):
+        return []
+    text = str(value).strip()
+    if not text:
+        return []
+    try:
+        parsed = ast.literal_eval(text)
+    except (ValueError, SyntaxError):
+        parsed = None
+    if isinstance(parsed, list):
+        return [str(item).strip() for item in parsed if str(item).strip()]
+    return [part.strip().strip("\"'") for part in text.strip("[]").split(",") if part.strip()]
+
+
+def _amenity_present(
+    amenities: list[str],
+    include_terms: tuple[str, ...],
+    exclude_terms: tuple[str, ...] = (),
+) -> int:
+    for item in amenities:
+        normalized = str(item).lower()
+        if any(
+            re.search(rf"\b{re.escape(term)}\b", normalized) is not None
+            for term in include_terms
+        ) and not any(
+            re.search(rf"\b{re.escape(term)}\b", normalized) is not None
+            for term in exclude_terms
+        ):
+            return 1
+    return 0
+
+
+def _add_amenity_features(listings: pd.DataFrame) -> pd.DataFrame:
+    result = listings.copy()
+    if "amenities" in result.columns:
+        amenity_lists = result["amenities"].map(_parse_amenity_list)
+        result["amenities_count"] = amenity_lists.map(len).astype("int64")
+        for feature, (include_terms, exclude_terms) in _KEY_AMENITIES.items():
+            result[f"has_{feature}"] = amenity_lists.map(
+                lambda items, include_terms=include_terms, exclude_terms=exclude_terms: _amenity_present(
+                    items, include_terms, exclude_terms
+                )
+            ).astype("int8")
+        result = result.drop(columns=["amenities"])
+    elif "amenities_count" not in result.columns:
+        result["amenities_count"] = pd.Series(pd.NA, index=result.index, dtype="Int64")
+    return result
+
+
+def _parse_bathroom_count(value: object) -> float:
+    if pd.isna(value):
+        return np.nan
+    text = str(value).lower()
+    if "half" in text:
+        return 0.5
+    match = re.search(r"(\d+(?:\.\d+)?)", text)
+    return float(match.group(1)) if match else np.nan
+
+
+def _add_bathroom_features(listings: pd.DataFrame) -> pd.DataFrame:
+    result = listings.copy()
+    if "bathrooms_text" in result.columns:
+        text = result["bathrooms_text"].astype("string")
+        result["bathrooms_count"] = result["bathrooms_text"].map(_parse_bathroom_count)
+        result["is_shared_bathroom"] = text.str.contains(
+            "shared", case=False, na=False
+        ).astype("int8")
+        result["is_private_bathroom"] = text.str.contains(
+            "private", case=False, na=False
+        ).astype("int8")
+        result = result.drop(columns=["bathrooms_text"])
+    return result
+
+
+def _add_host_features(listings: pd.DataFrame) -> pd.DataFrame:
+    result = listings.copy()
+    if {"hosts_time_as_host_years", "hosts_time_as_host_months"}.issubset(result.columns):
+        years = result["hosts_time_as_host_years"]
+        months = result["hosts_time_as_host_months"]
+        tenure = years.fillna(0) + months.fillna(0) / 12
+        has_tenure = years.notna() | months.notna()
+        result["host_tenure_years"] = tenure.where(has_tenure)
+    elif "host_since" in result.columns:
+        host_since = pd.to_datetime(result["host_since"], errors="coerce")
+        if "last_scraped" in result.columns:
+            reference = pd.to_datetime(result["last_scraped"], errors="coerce")
+            result["host_tenure_years"] = (reference - host_since).dt.days / 365.25
+    return result
+
+
+def _add_review_features(
+    listings: pd.DataFrame, snapshot_date: pd.Timestamp | str | None = None
+) -> pd.DataFrame:
+    result = listings.copy()
+    reference = (
+        pd.to_datetime(snapshot_date, errors="coerce")
+        if snapshot_date is not None
+        else None
+    )
+
+    if "last_review" in result.columns:
+        last_review = pd.to_datetime(result["last_review"], errors="coerce")
+        if reference is None and "last_scraped" in result.columns:
+            reference = pd.to_datetime(result["last_scraped"], errors="coerce")
+        if reference is None:
+            reference = pd.Timestamp("2026-09-18")
+        if isinstance(reference, pd.Timestamp):
+            days = (reference - last_review).dt.days
+        else:
+            days = (reference - last_review).dt.days
+        if snapshot_date is not None:
+            days = days.where(last_review <= reference)
+        result["days_since_last_review"] = days
+        assert result["days_since_last_review"].dropna().ge(0).all()
+
+    if "first_review" in result.columns:
+        first_review = pd.to_datetime(result["first_review"], errors="coerce")
+        if reference is None and "last_scraped" in result.columns:
+            reference = pd.to_datetime(result["last_scraped"], errors="coerce")
+        if reference is None:
+            reference = pd.Timestamp("2026-09-18")
+        if isinstance(reference, pd.Timestamp):
+            days = (reference - first_review).dt.days
+        else:
+            days = (reference - first_review).dt.days
+        if snapshot_date is not None:
+            days = days.where(first_review <= reference)
+        result["days_since_first_review"] = days
+
+    if {"first_review", "last_review"}.issubset(result.columns):
+        first_review = pd.to_datetime(result["first_review"], errors="coerce")
+        last_review = pd.to_datetime(result["last_review"], errors="coerce")
+        result["review_span_days"] = (last_review - first_review).dt.days
+
+    if "has_reviews" not in result.columns and "number_of_reviews" in result.columns:
+        result["has_reviews"] = result["number_of_reviews"].gt(0).astype("int8")
+
+    result = result.drop(columns=["first_review", "last_review"], errors="ignore")
+    return result
+
+
+def engineer_features(
+    listings: pd.DataFrame, snapshot_date: pd.Timestamp | str | None = None
+) -> pd.DataFrame:
+    """Add model-ready features derived from amenities, bathrooms and host data."""
+
+    result = listings.copy()
+    result = _add_amenity_features(result)
+    result = _add_bathroom_features(result)
+    result = _add_host_features(result)
+    result = _add_review_features(result, snapshot_date=snapshot_date)
+    return result
