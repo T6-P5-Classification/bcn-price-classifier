@@ -12,4 +12,3 @@
 - El revisor/a nunca es quien construyó el cambio.
 - Los bloqueos detectados en la daily se convierten en issues con etiqueta `bloqueado`.
 - La daily no aprueba specs ni mergea PRs.
-PY

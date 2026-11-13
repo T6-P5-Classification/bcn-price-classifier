@@ -105,8 +105,8 @@ El cuerpo del issue es la fuente de verdad de cada daily y se conserva aunque la
 5. **Auto-add.** El Project tiene que recoger los issues con `label:daily`.
 6. **Workflows integrados** (Project → *Workflows*):
    - *Item added to project* → `Status`: el estado inicial que ya uséis.
-   - *Item closed* → `Status`: `Hecho`.
-   - *Pull request merged* → `Status`: `Hecho`.
+   - *Item closed* → `Status`: `Done`.
+   - *Pull request merged* → `Status`: `Done`.
 7. **Primera prueba.** *Actions → Daily Scrum → Run workflow* (`forzar: false`) y comprobar que la tarjeta
    aparece en `Dailies` en la columna `Inicio`.
 
@@ -140,4 +140,3 @@ Si se añade o cambia una persona: actualizar `nombres` y `usuarios` en el workf
 - No escribe secretos: el workflow no usa ninguno.
 - No crea issues de trabajo: los bloqueos detectados en la daily se convierten en issues con etiqueta `bloqueado`
   y responsable, y entran en el tablero como cualquier tarea.
-PY

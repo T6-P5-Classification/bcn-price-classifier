@@ -15,9 +15,10 @@
 name: Daily Scrum
 
 on:
-  schedule:
-    # 06:30 UTC = 08:30 en Madrid en verano (CEST) y 07:30 en invierno (CET).
-    - cron: "30 6 * * 1-5"
+  # Activar tras validar la ejecucion manual.
+  # schedule:
+  #   # 06:30 UTC = 08:30 en Madrid en verano (CEST) y 07:30 en invierno (CET).
+  #   - cron: "30 6 * * 1-5"
   workflow_dispatch:
     inputs:
       forzar:
@@ -35,6 +36,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  GH_REPO: ${{ github.repository }}
   # Plantilla del cuerpo de la tarjeta. Marcadores: {{FECHA}}, {{SEMANA}}, {{NOMBRE}}, {{USUARIO}}.
   PLANTILLA: |
     **Equipo:** David (`davidlafuentem`) · Esra (`esrakesken`) · Beste (`BesteOzaydin`) · Miguel (`mmatesanzg23`)
@@ -74,8 +76,6 @@ env:
     ## Rutina por rol (rota por feature)
 
     - [ ] **Dueño/a de la spec:** resuelvo los `<<PENDIENTE>>`, muevo la spec a Aprobada y aviso al equipo
-    - [ ] **Constructor/a:** plan y tasks al día, JSON en `workflows/` con `active: false` y fixtures probados
-    - [ ] **Revisor/a:** `/revisar-flujo` pasado, sin secretos ni datos personales, PR aprobada
 
     ## Acuerdos y siguientes pasos
 
@@ -116,7 +116,6 @@ env:
     - Spec `Aprobada` antes de construir.
     - Una feature = una rama = una PR.
     - Sin credenciales ni datos personales en el repo.
-    - Los importes los da la app; no se recalculan.
     - Revisión humana obligatoria antes de mergear.
 
     ---
@@ -158,14 +157,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh label create daily \
-            --color 0E8A16 \
-            --description "Daily Scrum: ceremonia diaria del equipo" \
-            --force
-          gh label create scrum \
-            --color 5319E7 \
-            --description "Ceremonias y artefactos Scrum" \
-            --force
+          if ! gh label list --json name --jq '.[].name' | grep -Fxq daily; then
+            gh label create daily \
+              --color 0E8A16 \
+              --description "Daily Scrum: ceremonia diaria del equipo"
+          fi
+          if ! gh label list --json name --jq '.[].name' | grep -Fxq scrum; then
+            gh label create scrum \
+              --color 5319E7 \
+              --description "Ceremonias y artefactos Scrum"
+          fi
 
       - name: Comprobar que no exista ya la daily de hoy
         id: existe
@@ -180,8 +181,9 @@ jobs:
             echo "Ejecución forzada: se crea una tarjeta nueva aunque exista la de hoy."
             exit 0
           fi
-          if gh issue list --label daily --state all --limit 100 \
-              --json title --jq '.[].title' | grep -Fxq "[Daily] $FECHA"; then
+          issues=$(gh issue list --label daily --state all --limit 100 \
+            --json title --jq '.[].title')
+          if printf '%s\n' "$issues" | grep -Fxq "[Daily] $FECHA"; then
             echo "existe=true" >> "$GITHUB_OUTPUT"
             echo "La daily de $FECHA ya existe; no se crea otra."
           else
