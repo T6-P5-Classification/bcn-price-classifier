@@ -69,7 +69,7 @@ extraer variables en feature engineering.
 - La fecha de referencia para reseñas es configurable en `engineer_features(snapshot_date=...)`; por defecto usa `last_scraped` por fila para evitar fechas futuras.
 - `bathrooms_text` se convierte en `bathrooms_count` (`Half-bath` = 0.5) y en `is_shared_bathroom` / `is_private_bathroom`.
 - `host_tenure_years` se calcula a partir de `hosts_time_as_host_years/months`; en este snapshot `host_since` está vacío.
-- `host_tenure_years` convive actualmente con `hosts_time_as_host_years` y `hosts_time_as_host_months` entre las features. Comparten información: la variable derivada combina años y meses (con el tratamiento de nulos definido en el código). Esta redundancia puede afectar a la interpretación de coeficientes; no se eliminan columnas en esta entrega documental. Su eventual retirada debe evaluarse mediante validación, sin usar test para decidir.
+- `host_tenure_years` convive actualmente con `hosts_time_as_host_years` y `hosts_time_as_host_months` entre las features. Comparten información: la variable derivada combina años y meses (con el tratamiento de nulos definido en el código). Ninguna de estas variables entra en el modelo final (ver «Simplificación de variables»).
 - `has_reviews` se conserva de la limpieza (#7) para distinguir anuncios sin historial.
 - `days_since_last_review`, `days_since_first_review` y `review_span_days` usan por defecto `last_scraped` de cada fila; si se pasa `snapshot_date`, esa fecha se usa como referencia y las reseñas posteriores se convierten en `NaN`. Los nulos corresponden a anuncios sin reseñas.
 - `clean_listings()` realiza solo limpieza; `engineer_features()` realiza feature engineering por separado.
@@ -110,10 +110,97 @@ los folds evalúan esa misma definición de clases, no aprenden umbrales
 nuevos. Esto no es una evaluación temporal ni garantiza generalización a
 otros barrios, anfitriones o snapshots.
 
-## Inventario de columnas del modelo
+## Simplificación de variables: de 71 a 23
 
-`select_model_features()` elimina las columnas de `MODEL_EXCLUDED_COLUMNS`
-cuando están presentes. La lista explícita vigente es:
+Tras la revisión del profesor («71 columnas son demasiadas»), la selección de
+variables se rehízo con un criterio positivo: `MODEL_FEATURES` en
+`src/cleaning.py` es una **lista cerrada de variables permitidas**.
+`select_model_features()` devuelve solo esas columnas; una columna nueva del
+raw ya no puede entrar en el modelo sin cambiar la lista a propósito.
+
+El análisis está en `notebooks/02_eda_classes.ipynb`, sección 6, y usa
+**solo train**: elegir variables es una decisión y no puede mirar test.
+
+### Regla del producto
+
+> Un anfitrión de Barcelona va a publicar un anuncio nuevo, describe su
+> alojamiento y la app le dice si estará en el segmento Económico, Medio o
+> Premium.
+
+Por tanto, **solo se usan datos que el anfitrión conoce al publicar**. Lo que
+aparece después de publicar (reseñas, ocupación, disponibilidad) no existe
+para un anuncio nuevo. Así la métrica de los notebooks es también la métrica
+real de la app.
+
+### Simplificaciones aplicadas
+
+| # | Simplificación | Columnas | Motivo | Efecto en CV |
+|---|---|---|---|---|
+| 1 | Fuera identificadores, URLs, datos personales, leakage y columnas vacías | Lista de `MODEL_EXCLUDED_COLUMNS` (abajo) | Reglas fijas: no describen el alojamiento, privacidad o contienen el precio | — |
+| 2 | Fuera el historial de reseñas | `number_of_reviews*`, `review_scores_*`, `reviews_per_month`, `days_since_*_review`, `review_span_days`, `has_reviews` | Un anuncio nuevo no tiene reseñas. Además apenas aportaban: 0,786 con reseñas frente a 0,783 sin ellas (boosting) | ≈ 0 |
+| 3 | Fuera disponibilidad y ocupación | `availability_*`, `has_availability`, `estimated_occupancy_l365d` | Aparecen después de publicar | Incluido en la caída total |
+| 4 | Fuera la cartera e historial del anfitrión | `*listings_count*`, `hosts_time_as_*`, `host_tenure_years`, `host_has_profile_pic`, `host_identity_verified` | No describen el alojamiento ni dependen del anuncio nuevo | Incluido en la caída total |
+| 5 | Fuera `host_is_superhost` | `host_is_superhost` | Es una insignia basada en el historial (puntuación, estancias, cancelaciones). Correlación débil (V de Cramér 0,12) | 0,777 → 0,773 |
+| 6 | Fuera variables redundantes | `minimum_minimum_nights`, `maximum_minimum_nights`, `minimum_nights_avg_ntm` y el resto de variantes de noches | Repiten la información de `minimum_nights` (Spearman con la clase entre −0,57 y −0,62) | ≈ 0 |
+| 7 | Fuera indicadores de limpieza | `beds_was_missing`, `minimum_nights_was_missing` | Describen huecos del dataset, no el alojamiento | ≈ 0 |
+| 8 | Fuera variables con correlación ~0 con la clase | `has_washer` (0,01), `has_clothes_dryer` (0,00), `maximum_nights` (0,08) | Sin relación con el segmento en train | 0,783 → 0,775 |
+| 9 | Fuera `amenities_count` | `amenities_count` | El anfitrión no puede saber cómo cuenta Airbnb los servicios, y con las casillas `has_*` no aporta nada | 0,775 → 0,777 |
+
+Efecto en CV: F1 macro de validación con boosting de referencia
+(`HistGradientBoostingClassifier` por defecto), 5 folds estratificados, solo train.
+Cada efecto se midió en el momento en que se tomó esa decisión, así que los
+valores intermedios no se suman exactamente.
+
+### Lo que **no** se simplificó, y por qué
+
+- **`latitude` y `longitude`:** su correlación con la clase es ~0, pero su
+  efecto no es lineal (zonas caras como la costa o el Eixample). Quitarlas
+  empeora el CV (0,783 → 0,779). Correlación baja no siempre significa inútil.
+- **Los 10 servicios `has_*`:** se compararon con una selección automática.
+  Se normalizaron los 1.872 servicios distintos de train (→ 1.060), se
+  filtraron los presentes en el 5–95 % de los anuncios (→ 81) y se ordenaron
+  por correlación con la clase. Los 10 elegidos en #9 dan el mismo CV que los
+  10 primeros del ranking (0,775 frente a 0,778). Con los 81 solo se gana
+  +1,5 puntos.
+- **`accommodates`, `bedrooms` y `beds`:** están muy correlacionadas entre sí
+  (0,80–0,85), pero ninguna pareja supera el umbral de 0,85 y las tres
+  describen el alojamiento.
+
+⚠️ **Correlación no es causalidad.** Los servicios elegidos aparecen más en
+los anuncios caros, pero no significa que *suban* el precio: muchos son
+señales de otra cosa (el secador indica un piso totalmente equipado; el
+ascensor, el tipo de edificio y la zona). Ayudan al modelo a **reconocer** el
+segmento. Lo que más lo marca es la ubicación, la capacidad, el tipo de
+alojamiento y las noches mínimas.
+
+### Resultado
+
+| Variables | LogReg (val) | Boosting (val) | Boosting (train) |
+|---|---|---|---|
+| 71 candidatas (antes) | 0,765 | 0,812 | 0,991 |
+| **23 elegidas** | **0,729** | **0,773** | 0,910 |
+
+Perdemos unos 4 puntos de F1, pero 0,812 nunca se habría alcanzado en la app:
+al formulario le faltaban 45 de las 71 columnas, y en ese caso el boosting
+bajaba a 0,567. El gap train-validación del boosting sin ajustar (14 puntos)
+supera el límite de 5: hay que reducirlo con Optuna en #19–#21.
+
+### Las 23 variables del modelo
+
+| Grupo | Variables |
+|---|---|
+| 📍 Ubicación (4) | `neighbourhood_cleansed`, `neighbourhood_group_cleansed`, `latitude`, `longitude` |
+| 🏠 Alojamiento (6) | `property_type`, `room_type`, `accommodates`, `bedrooms`, `beds`, `minimum_nights` |
+| 🛁 Baños (3) | `bathrooms_count`, `is_shared_bathroom`, `is_private_bathroom` |
+| ✨ Servicios (10) | `has_air_conditioning`, `has_heating`, `has_hair_dryer`, `has_parking`, `has_self_checkin`, `has_dedicated_workspace`, `has_tv`, `has_pool`, `has_elevator`, `has_dishwasher` |
+
+13 de las 23 se crearon en feature engineering (#9) a partir de `amenities` y
+`bathrooms_text`.
+
+### Columnas excluidas por reglas (`MODEL_EXCLUDED_COLUMNS`)
+
+Se mantiene como lista de privacidad y leakage; un test comprueba que ninguna
+está en `MODEL_FEATURES`:
 
 ```text
 id, listing_url, scrape_id, name, picture_url,
@@ -129,28 +216,8 @@ price_quote_total_price, price_quote_price_per_night, price_quote_raw,
 estimated_revenue_l365d, last_scraped, calendar_updated, calendar_last_scraped
 ```
 
-No hay un borrado dinámico de cualquier columna vacía ni una lista cerrada
-de columnas permitidas: una columna nueva del raw podría entrar en `X`.
 Antes de aceptar otro snapshot hay que revisar su esquema, privacidad y
 posible información derivada del precio.
-
-Para el snapshot actual se verifican **71 features antes del encoding**:
-
-| Grupo | Columnas |
-|---|---|
-| Anfitrión | `hosts_time_as_user_years`, `hosts_time_as_user_months`, `hosts_time_as_host_years`, `hosts_time_as_host_months`, `host_is_superhost`, `host_listings_count`, `host_has_profile_pic`, `host_identity_verified`, `host_tenure_years` |
-| Localización y alojamiento | `neighbourhood_cleansed`, `neighbourhood_group_cleansed`, `latitude`, `longitude`, `property_type`, `room_type`, `accommodates`, `bedrooms`, `beds` |
-| Estancias | `minimum_nights`, `maximum_nights`, `minimum_minimum_nights`, `maximum_minimum_nights`, `minimum_maximum_nights`, `maximum_maximum_nights`, `minimum_nights_avg_ntm`, `maximum_nights_avg_ntm` |
-| Disponibilidad e historial de ocupación | `has_availability`, `availability_30`, `availability_60`, `availability_90`, `availability_365`, `availability_eoy`, `estimated_occupancy_l365d` |
-| Reseñas | `number_of_reviews`, `number_of_reviews_ltm`, `number_of_reviews_l30d`, `number_of_reviews_ly`, `review_scores_rating`, `review_scores_accuracy`, `review_scores_cleanliness`, `review_scores_checkin`, `review_scores_communication`, `review_scores_location`, `review_scores_value`, `reviews_per_month`, `days_since_last_review`, `days_since_first_review`, `review_span_days` |
-| Recuento de anuncios del anfitrión | `calculated_host_listings_count`, `calculated_host_listings_count_entire_homes`, `calculated_host_listings_count_private_rooms`, `calculated_host_listings_count_shared_rooms` |
-| Indicadores de limpieza | `beds_was_missing`, `minimum_nights_was_missing`, `has_reviews` |
-| Amenities y baños | `amenities_count`, `has_air_conditioning`, `has_heating`, `has_washer`, `has_hair_dryer`, `has_clothes_dryer`, `has_parking`, `has_self_checkin`, `has_dedicated_workspace`, `has_tv`, `has_pool`, `has_elevator`, `has_dishwasher`, `bathrooms_count`, `is_shared_bathroom`, `is_private_bathroom` |
-
-Son entradas del clasificador actual, no una garantía de que el usuario
-pueda rellenarlas todas para un alojamiento nuevo. La app debe acordar cómo
-tratar campos históricos no disponibles, sin inventar valores ni asumir
-que una evaluación con historial equivale a evaluar un anuncio nuevo.
 
 ## Primera celda común de los notebooks de modelado
 
@@ -177,8 +244,9 @@ etapas, no plantillas alternativas de entrenamiento.
   `min_frequency=20`, `handle_unknown="infrequent_if_exist"` y salida densa.
   Las categorías desconocidas van al grupo infrecuente si existe; si no,
   se codifican como ceros en ese campo.
-- El número de columnas codificadas puede variar entre folds. Las 146
-  observadas al ajustar todo el train no son una dimensión fija.
+- El número de columnas codificadas puede variar entre folds. Las 94
+  observadas al ajustar todo el train con las 23 variables no son una
+  dimensión fija.
 
 Cada modelo utiliza `Pipeline([("prep", build_preprocessor()),
 ("model", estimador)])`. Pasar el **Pipeline completo** a la validación y

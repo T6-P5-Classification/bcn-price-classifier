@@ -67,6 +67,48 @@ MODEL_EXCLUDED_COLUMNS = frozenset(
     }
 )
 
+# Whitelist of model inputs (agreed after the teacher's review: 71 columns were
+# too many). Only information a host knows when publishing a listing, so the
+# metrics of the notebooks are the real metrics of the app. Review history,
+# availability/occupancy and host portfolio counts are left out: they do not
+# exist for a new listing and reviews barely changed the CV score. Columns
+# with ~0 correlation with the class on train (has_washer, has_clothes_dryer,
+# maximum_nights) are also left out. amenities_count is left out because a
+# host cannot know how Airbnb counts it and, with the has_* flags, it added
+# nothing in CV. host_is_superhost is left out too: the badge comes from the
+# host's history (ratings, stays, cancellations) and added almost nothing.
+# Coordinates stay: their effect is not linear (expensive areas), so a low
+# correlation does not mean no signal.
+MODEL_FEATURES = (
+    # Location
+    "neighbourhood_cleansed",
+    "neighbourhood_group_cleansed",
+    "latitude",
+    "longitude",
+    # Listing
+    "property_type",
+    "room_type",
+    "accommodates",
+    "bedrooms",
+    "beds",
+    "minimum_nights",
+    # Bathrooms
+    "bathrooms_count",
+    "is_shared_bathroom",
+    "is_private_bathroom",
+    # Amenities
+    "has_air_conditioning",
+    "has_heating",
+    "has_hair_dryer",
+    "has_parking",
+    "has_self_checkin",
+    "has_dedicated_workspace",
+    "has_tv",
+    "has_pool",
+    "has_elevator",
+    "has_dishwasher",
+)
+
 MAP_COLUMNS = (
     "latitude",
     "longitude",
@@ -139,15 +181,14 @@ def clean_listings(listings: pd.DataFrame) -> pd.DataFrame:
 
 
 def select_model_features(listings: pd.DataFrame) -> pd.DataFrame:
-    """Return model features without identifiers or leakage.
+    """Return only the agreed model inputs (``MODEL_FEATURES``).
 
-    ``price`` is excluded here, after cleaning has made it available for target
-    construction. Coordinates are intentionally retained for the model. Missing
-    columns are ignored so this function can be used before optional target
-    columns are added.
+    ``price`` and every other column are left out. Columns that do not exist
+    yet are skipped, so the function also works on small test frames.
     """
 
-    return listings.drop(columns=list(MODEL_EXCLUDED_COLUMNS), errors="ignore").copy()
+    columns = [column for column in MODEL_FEATURES if column in listings.columns]
+    return listings.loc[:, columns].copy()
 
 
 def select_map_view(listings: pd.DataFrame) -> pd.DataFrame:
