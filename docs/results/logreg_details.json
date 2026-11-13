@@ -1,0 +1,163 @@
+{
+  "provenance": {
+    "source_hashes": {
+      "src/preprocessing.py": "e154b587d73ee0461efebdac1ea59248465e9a59eeb1f88a091c936074fa856c",
+      "src/cleaning.py": "d9297dafe1d82a45de027a6d5803684d18efc64f50d78ba340136c1bffeac5b6",
+      "notebook_code": "784cdbb3022929edcdaccc4a980cad3070164c9e6cfe9d33ad65a61e25b28cc8"
+    },
+    "code_state": "Base commit plus notebook changes in this delivery",
+    "code_commit": "59d8f23d3a1933f1b7d39a18e843fa81c9d6bde8",
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "thresholds": {
+      "lower": 122.0,
+      "upper": 249.72333333333327
+    },
+    "n_train": 10088,
+    "n_test": 2522,
+    "n_features": 71,
+    "python": "3.12.5",
+    "seed": 42,
+    "trials": 20,
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scikit-learn": "1.9.1",
+      "optuna": "5.0.0",
+      "matplotlib": "3.11.2"
+    },
+    "protocol_status": "Propuesta pendiente; presupuesto local 20 trials",
+    "source_notebook": "notebooks/04_model_logreg.ipynb"
+  },
+  "reports": {
+    "DummyClassifier": {
+      "Económico": {
+        "precision": 0.33346550356859633,
+        "recall": 1.0,
+        "f1-score": 0.5001486767766875,
+        "support": 841.0
+      },
+      "Medio": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 840.0
+      },
+      "Premium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 841.0
+      },
+      "accuracy": 0.33346550356859633,
+      "macro avg": {
+        "precision": 0.11115516785619878,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.16671622559222918,
+        "support": 2522.0
+      },
+      "weighted avg": {
+        "precision": 0.11119924207025755,
+        "recall": 0.33346550356859633,
+        "f1-score": 0.16678233036050522,
+        "support": 2522.0
+      }
+    },
+    "LogisticRegression": {
+      "Económico": {
+        "precision": 0.8654073199527745,
+        "recall": 0.8715814506539834,
+        "f1-score": 0.8684834123222749,
+        "support": 841.0
+      },
+      "Medio": {
+        "precision": 0.6582278481012658,
+        "recall": 0.680952380952381,
+        "f1-score": 0.6693973083674664,
+        "support": 840.0
+      },
+      "Premium": {
+        "precision": 0.7791563275434243,
+        "recall": 0.746730083234245,
+        "f1-score": 0.7625986642380085,
+        "support": 841.0
+      },
+      "accuracy": 0.7664551942902459,
+      "macro avg": {
+        "precision": 0.7675971651991548,
+        "recall": 0.7664213049468698,
+        "f1-score": 0.7668264616425832,
+        "support": 2522.0
+      },
+      "weighted avg": {
+        "precision": 0.767640531304269,
+        "recall": 0.7664551942902459,
+        "f1-score": 0.7668650933449128,
+        "support": 2522.0
+      }
+    }
+  },
+  "confusion_matrices": {
+    "DummyClassifier": [
+      [
+        841,
+        0,
+        0
+      ],
+      [
+        840,
+        0,
+        0
+      ],
+      [
+        841,
+        0,
+        0
+      ]
+    ],
+    "LogisticRegression": [
+      [
+        733,
+        100,
+        8
+      ],
+      [
+        98,
+        572,
+        170
+      ],
+      [
+        16,
+        197,
+        628
+      ]
+    ]
+  },
+  "best_params": {
+    "C": 0.9846738873614568,
+    "class_weight": null
+  },
+  "folds": {
+    "cv_summary": {
+      "cv_train_f1_macro": 0.782604594929341,
+      "cv_validation_f1_macro": 0.7658721555753796,
+      "cv_validation_std": 0.007133154465594768,
+      "gap": 0.016732439353961404,
+      "gap_under_005": true,
+      "cv_fit_seconds": 1.8309001922607422
+    },
+    "fold_train": [
+      0.7821696950784801,
+      0.7830332905465078,
+      0.7814244279500654,
+      0.7828140990582543,
+      0.7835814620133973
+    ],
+    "fold_validation": [
+      0.763648467144893,
+      0.7754647721553404,
+      0.7728612046452067,
+      0.7603550662178966,
+      0.757031267713561
+    ]
+  }
+}

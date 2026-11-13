@@ -46,3 +46,32 @@ extraer variables en feature engineering.
   permite recuperar los umbrales para guardarlos junto con el modelo.
   `price` nunca entra en las features; la imputación, el escalado y el
   encoding quedan fuera de #12.
+
+## Baseline de regresión logística (#18)
+
+`notebooks/04_model_logreg.ipynb` reutiliza el split y el Pipeline comunes.
+Se compara `DummyClassifier(strategy="most_frequent")` con regresión logística
+multiclase (`lbfgs`, L2 por defecto, `max_iter=5000`). Optuna maximiza F1 macro
+medio con `StratifiedKFold(5, shuffle=True, random_state=42)`, pasando siempre
+el Pipeline completo a cada fold. Se exploran `C` entre 0.001 y 100 en escala
+logarítmica y `class_weight` entre `None` y `balanced`, con TPE y semilla 42.
+
+Estas reglas de scoring y gap siguen la propuesta de decisiones todavía
+pendiente de aprobación, no un acuerdo ya integrado en dev. El presupuesto
+local de 20 trials tampoco representa un presupuesto común acordado.
+El gap se calcula como F1 macro medio de train menos F1 macro medio de
+validación; se exige `< 0.05` absoluto (cinco puntos porcentuales). La selección
+maximiza validación; el gap se comprueba después, sin retocar contra test.
+
+El test se consulta tras congelar la selección, para ambos modelos sobre las
+mismas filas. Se guardan accuracy, F1 macro, informes por clase y matrices
+rotuladas, junto a dispersión de CV, tiempos, parámetros y procedencia.
+`docs/results/logreg_comparison.csv` alimenta `08_comparison.ipynb`;
+`logreg_details.json` conserva informes, matrices, folds, umbrales completos,
+versiones y hashes; `logreg_trials.csv` registra la búsqueda. No contienen
+filas individuales del dataset. No se publica un modelo serializado.
+
+La CV optimizada no es una estimación independiente. El split aleatorio no
+separa anfitriones ni fechas; las métricas describen el snapshot y protocolo
+actuales. Los bins provisionales globales y los umbrales fijos de train son
+las salvedades documentadas en la sección de split.
