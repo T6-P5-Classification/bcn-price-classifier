@@ -67,18 +67,15 @@ MODEL_EXCLUDED_COLUMNS = frozenset(
     }
 )
 
-# Whitelist of model inputs (agreed after the teacher's review: 71 columns were
-# too many). Only information a host knows when publishing a listing, so the
-# metrics of the notebooks are the real metrics of the app. Review history,
-# availability/occupancy and host portfolio counts are left out: they do not
-# exist for a new listing and reviews barely changed the CV score. Columns
-# with ~0 correlation with the class on train (has_washer, has_clothes_dryer,
-# maximum_nights) are also left out. amenities_count is left out because a
-# host cannot know how Airbnb counts it and, with the has_* flags, it added
-# nothing in CV. host_is_superhost is left out too: the badge comes from the
-# host's history (ratings, stays, cancellations) and added almost nothing.
-# Coordinates stay: their effect is not linear (expensive areas), so a low
-# correlation does not mean no signal.
+# Whitelist of model inputs (closed list, agreed after the teacher's review:
+# 71 columns were too many). The app targets NEW listings, so only information
+# a host knows when publishing is allowed: review history, availability /
+# occupancy and host history are left out by that product rule, not because
+# they carried no signal. Further simplifications (calendar variants of
+# nights, host_is_superhost, amenities_count, has_washer, has_clothes_dryer,
+# maximum_nights) are small, accepted CV losses. Coordinates stay: their
+# effect is not linear (expensive areas). Step-by-step ablation:
+# notebooks/02_eda_classes.ipynb (section 6) and docs/decisiones.md.
 MODEL_FEATURES = (
     # Location
     "neighbourhood_cleansed",

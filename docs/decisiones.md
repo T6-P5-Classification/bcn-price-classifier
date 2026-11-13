@@ -112,78 +112,96 @@ otros barrios, anfitriones o snapshots.
 
 ## Simplificación de variables: de 71 a 23
 
-Tras la revisión del profesor («71 columnas son demasiadas»), la selección de
-variables se rehízo con un criterio positivo: `MODEL_FEATURES` en
-`src/cleaning.py` es una **lista cerrada de variables permitidas**.
-`select_model_features()` devuelve solo esas columnas; una columna nueva del
-raw ya no puede entrar en el modelo sin cambiar la lista a propósito.
+Tras la revisión del profesor («71 columnas son demasiadas») y el acuerdo del
+equipo de orientar la app a **anuncios nuevos**, la selección se rehízo con un
+criterio positivo: `MODEL_FEATURES` en `src/cleaning.py` es una **lista
+cerrada de variables permitidas**. `select_model_features()` devuelve solo
+esas columnas; una columna nueva del raw no entra en el modelo sin cambiar la
+lista a propósito.
 
 El análisis está en `notebooks/02_eda_classes.ipynb`, sección 6, y usa
-**solo train**: elegir variables es una decisión y no puede mirar test.
+**solo train**. Incluye una ablación reproducible: columnas exactas de cada
+paso, resultados por fold y comparaciones laterales.
 
-### Regla del producto
+### Regla del producto (acordada por el equipo)
 
 > Un anfitrión de Barcelona va a publicar un anuncio nuevo, describe su
 > alojamiento y la app le dice si estará en el segmento Económico, Medio o
 > Premium.
 
-Por tanto, **solo se usan datos que el anfitrión conoce al publicar**. Lo que
-aparece después de publicar (reseñas, ocupación, disponibilidad) no existe
-para un anuncio nuevo. Así la métrica de los notebooks es también la métrica
-real de la app.
+Por tanto, solo se usan datos que el anfitrión conoce **al publicar**. Lo que
+aparece después (reseñas, ocupación, disponibilidad) no existe para un anuncio
+nuevo. Esto acerca lo que ve el modelo al entrenar a lo que recibirá la app,
+pero **no garantiza** el mismo rendimiento con usuarios reales: la población,
+los datos ausentes y la forma de responder al formulario pueden cambiar.
 
-### Simplificaciones aplicadas
+### Ablación paso a paso (acumulativa)
 
-| # | Simplificación | Columnas | Motivo | Efecto en CV |
+F1 macro de validación, media de 5 folds estratificados (`random_state=42`),
+solo train, `build_preprocessor()` y modelos por defecto
+(`LogisticRegression(max_iter=3000)`, `HistGradientBoostingClassifier`).
+Cada paso parte del conjunto del paso anterior.
+
+| Paso | Columnas retiradas | Motivo | Nº | LogReg | Boosting |
+|---|---|---|---|---|---|
+| 0 | — | Todas las candidatas tras las exclusiones por reglas | 71 | 0,765 | 0,812 |
+| 1 | Reseñas: `number_of_reviews*`, `review_scores_*`, `reviews_per_month`, `has_reviews`, `days_since_*_review`, `review_span_days` | **Producto:** un anuncio nuevo no tiene reseñas | 55 | 0,758 | 0,817 |
+| 2 | Disponibilidad y ocupación: `availability_*`, `has_availability`, `estimated_occupancy_l365d` | **Producto:** aparecen después de publicar | 48 | 0,746 | 0,807 |
+| 3 | Historial del anfitrión: `*listings_count*`, `hosts_time_as_*`, `host_tenure_years`, `host_has_profile_pic`, `host_identity_verified` | **Producto:** describen al anfitrión y su cartera, no el alojamiento | 36 | 0,740 | 0,796 |
+| 4 | `beds_was_missing`, `minimum_nights_was_missing` | Describen huecos del dataset, no el alojamiento | 34 | 0,743 | 0,797 |
+| 5 | Variantes de calendario de noches: `minimum_minimum_nights`, `maximum_minimum_nights`, `minimum_maximum_nights`, `maximum_maximum_nights`, `minimum_nights_avg_ntm`, `maximum_nights_avg_ntm` | **Simplificación con pérdida aceptada.** Algunas casi repiten `minimum_nights` en train (Spearman entre variables: `minimum_minimum_nights` 1,00; `minimum_nights_avg_ntm` 0,88; `maximum_minimum_nights` 0,82), pero en conjunto sí aportaban información | 28 | 0,730 | 0,783 |
+| 6 | `host_is_superhost` | **Producto:** insignia basada en el historial (puntuación, estancias, cancelaciones) | 27 | 0,729 | 0,779 |
+| 7 | `amenities_count` | Con las casillas `has_*` aporta poco; la app tendría que reproducir exactamente el recuento de Airbnb | 26 | 0,730 | 0,776 |
+| 8 | `has_washer`, `has_clothes_dryer`, `maximum_nights` | **Pérdida aceptada** para simplificar el formulario (ver comparación 23 vs 26). `maximum_nights` vale en su mayoría valores por defecto (1125: 23,5 %; 365: 26 %; 999: 6 %) | **23** | **0,729** | **0,773** |
+
+Lectura de la tabla:
+
+- Los pasos 1–3 y 6 se deciden **por la regla del producto**, no por su
+  aportación: el paso 1 no empeora (0,812 → 0,817), pero los pasos 2, 3 y 6
+  cuestan unos 2 puntos en total con boosting. Es el precio de un modelo para
+  anuncios nuevos.
+- Los pasos 5, 7 y 8 son simplificaciones con **pérdidas pequeñas y
+  aceptadas**. Que la correlación individual con la clase sea ~0 no demuestra
+  ausencia de relación, especialmente para boosting, que puede usar efectos no
+  lineales y combinaciones de variables.
+- Son resultados **diagnósticos**: la selección se ha hecho mirando esta misma
+  validación, por lo que son algo optimistas y no sustituyen la evaluación
+  final en test.
+
+### Comparaciones laterales (desde las 23 finales)
+
+| Conjunto | Nº | LogReg | Boosting | Boosting por fold |
 |---|---|---|---|---|
-| 1 | Fuera identificadores, URLs, datos personales, leakage y columnas vacías | Lista de `MODEL_EXCLUDED_COLUMNS` (abajo) | Reglas fijas: no describen el alojamiento, privacidad o contienen el precio | — |
-| 2 | Fuera el historial de reseñas | `number_of_reviews*`, `review_scores_*`, `reviews_per_month`, `days_since_*_review`, `review_span_days`, `has_reviews` | Un anuncio nuevo no tiene reseñas. Además apenas aportaban: 0,786 con reseñas frente a 0,783 sin ellas (boosting) | ≈ 0 |
-| 3 | Fuera disponibilidad y ocupación | `availability_*`, `has_availability`, `estimated_occupancy_l365d` | Aparecen después de publicar | Incluido en la caída total |
-| 4 | Fuera la cartera e historial del anfitrión | `*listings_count*`, `hosts_time_as_*`, `host_tenure_years`, `host_has_profile_pic`, `host_identity_verified` | No describen el alojamiento ni dependen del anuncio nuevo | Incluido en la caída total |
-| 5 | Fuera `host_is_superhost` | `host_is_superhost` | Es una insignia basada en el historial (puntuación, estancias, cancelaciones). Correlación débil (V de Cramér 0,12) | 0,777 → 0,773 |
-| 6 | Fuera variables redundantes | `minimum_minimum_nights`, `maximum_minimum_nights`, `minimum_nights_avg_ntm` y el resto de variantes de noches | Repiten la información de `minimum_nights` (Spearman con la clase entre −0,57 y −0,62) | ≈ 0 |
-| 7 | Fuera indicadores de limpieza | `beds_was_missing`, `minimum_nights_was_missing` | Describen huecos del dataset, no el alojamiento | ≈ 0 |
-| 8 | Fuera variables con correlación ~0 con la clase | `has_washer` (0,01), `has_clothes_dryer` (0,00), `maximum_nights` (0,08) | Sin relación con el segmento en train | 0,783 → 0,775 |
-| 9 | Fuera `amenities_count` | `amenities_count` | El anfitrión no puede saber cómo cuenta Airbnb los servicios, y con las casillas `has_*` no aporta nada | 0,775 → 0,777 |
+| 23 finales | 23 | 0,729 | 0,773 ± 0,006 | 0,770 · 0,769 · 0,784 · 0,769 · 0,775 |
+| 23 + `has_washer`, `has_clothes_dryer`, `maximum_nights` | 26 | 0,730 | 0,776 ± 0,007 | 0,770 · 0,773 · 0,789 · 0,770 · 0,780 |
+| 23 sin `latitude`/`longitude` | 21 | 0,728 | 0,761 ± 0,006 | 0,754 · 0,770 · 0,761 · 0,758 · 0,763 |
 
-Efecto en CV: F1 macro de validación con boosting de referencia
-(`HistGradientBoostingClassifier` por defecto), 5 folds estratificados, solo train.
-Cada efecto se midió en el momento en que se tomó esa decisión, así que los
-valores intermedios no se suman exactamente.
-
-### Lo que **no** se simplificó, y por qué
-
-- **`latitude` y `longitude`:** su correlación con la clase es ~0, pero su
-  efecto no es lineal (zonas caras como la costa o el Eixample). Quitarlas
-  empeora el CV (0,783 → 0,779). Correlación baja no siempre significa inútil.
-- **Los 10 servicios `has_*`:** se compararon con una selección automática.
-  Se normalizaron los 1.872 servicios distintos de train (→ 1.060), se
-  filtraron los presentes en el 5–95 % de los anuncios (→ 81) y se ordenaron
-  por correlación con la clase. Los 10 elegidos en #9 dan el mismo CV que los
-  10 primeros del ranking (0,775 frente a 0,778). Con los 81 solo se gana
-  +1,5 puntos.
-- **`accommodates`, `bedrooms` y `beds`:** están muy correlacionadas entre sí
-  (0,80–0,85), pero ninguna pareja supera el umbral de 0,85 y las tres
-  describen el alojamiento.
+- **23 vs 26:** +0,3 puntos, menor que la variación entre folds. F1 por clase
+  y errores extremos (Económico ↔ Premium, 0,95 % frente a 0,94 %)
+  prácticamente iguales. Se mantienen las 23.
+- **Coordenadas:** su correlación individual con la clase es ~0, pero quitarlas
+  cuesta 1,2 puntos con boosting (efecto no lineal: zonas caras). Se mantienen.
+- **Los 10 servicios `has_*`:** se compararon con una selección automática en
+  train (1.872 servicios distintos → 1.060 normalizados → 81 presentes en el
+  5–95 % de los anuncios → ordenados por correlación con la clase). Los 10
+  elegidos en #9 dan un CV similar a los 10 primeros del ranking (0,775 frente
+  a 0,778 en ese momento); con los 81 se ganaba +1,5 puntos.
 
 ⚠️ **Correlación no es causalidad.** Los servicios elegidos aparecen más en
 los anuncios caros, pero no significa que *suban* el precio: muchos son
 señales de otra cosa (el secador indica un piso totalmente equipado; el
 ascensor, el tipo de edificio y la zona). Ayudan al modelo a **reconocer** el
-segmento. Lo que más lo marca es la ubicación, la capacidad, el tipo de
-alojamiento y las noches mínimas.
+segmento.
 
 ### Resultado
 
-| Variables | LogReg (val) | Boosting (val) | Boosting (train) |
-|---|---|---|---|
-| 71 candidatas (antes) | 0,765 | 0,812 | 0,991 |
-| **23 elegidas** | **0,729** | **0,773** | 0,910 |
-
-Perdemos unos 4 puntos de F1, pero 0,812 nunca se habría alcanzado en la app:
-al formulario le faltaban 45 de las 71 columnas, y en ese caso el boosting
-bajaba a 0,567. El gap train-validación del boosting sin ajustar (14 puntos)
-supera el límite de 5: hay que reducirlo con Optuna en #19–#21.
+Con las 23 variables: F1 macro de validación 0,729 (LogReg) y 0,773
+(boosting por defecto). Es el **F1 de validación con las 23 variables**, no
+todavía una medida del rendimiento con usuarios reales. Con las 71 se obtenía
+0,812, pero el formulario no podría rellenar 45 de esas columnas: imputándolas,
+el boosting bajaba a 0,567 en la misma validación. El gap train-validación del
+boosting sin ajustar (0,910 − 0,773 ≈ 14 puntos) supera el límite de 5: hay que
+reducirlo con Optuna en #19–#21.
 
 ### Las 23 variables del modelo
 
