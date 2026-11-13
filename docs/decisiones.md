@@ -433,3 +433,17 @@ cambiado la configuración de búsqueda en respuesta a esos resultados.
 train sintético y objetos de test que fallan si se inspeccionan. Comprueba
 que los informes y las matrices cubren train y que no se exportan columnas
 de resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+### Carga automática de la tabla común (#22)
+
+`08_comparison.ipynb` descubre todos los `docs/results/*_comparison.csv`,
+comprueba su esquema y comparabilidad y los concatena sin reentrenar.
+Añade `source_csv` para identificar el origen de cada fila y ordena por F1
+macro medio de validación. Las referencias Dummy repetidas se conservan con
+su procedencia; no se declara automáticamente un champion.
+
+Se rechazan resultados de test, scores inválidos, gaps inconsistentes y
+metadatos de snapshot/hash/CV diferentes. El contrato de columnas para los
+productores está en [model_comparison.md](model_comparison.md). Las
+instrucciones de ejecución de la baseline están en [logreg.md](logreg.md),
+para mantener esta entrega independiente de las ediciones del README general.
