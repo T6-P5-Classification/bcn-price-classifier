@@ -1,0 +1,16 @@
+name: Personal GitHub review signal
+
+on:
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions: {}
+
+jobs:
+  signal:
+    runs-on: ubuntu-latest
+    steps:
+      # No checkout, scripts, artifacts, or credentials. The privileged listener
+      # reads only PR metadata and refetches reviews using trusted default code.
+      - name: Notify lifecycle listener
+        run: echo 'Review state changed; lifecycle listener will reconcile live state.'
