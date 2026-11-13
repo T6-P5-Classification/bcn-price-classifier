@@ -396,3 +396,17 @@ anunciados de alojamientos comparables por barrio, tipo y segmento, indicando
 fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
+
+## Contrato funcional de inferencia (#31)
+
+`tests/test_model.py` prueba un Pipeline real con el preprocesador compartido,
+23 entradas sintéticas y un estimador LogisticRegression de referencia.
+Comprueba etiquetas, tamaño, probabilidades y su orden de clases, nulos,
+categorías desconocidas, orden de columnas, columnas obligatorias y persistencia
+joblib. La prueba de nulos confirma que inferencia no reaprende las medianas.
+No cambia las funciones compartidas ni las decisiones de otros modelos.
+
+Los tests sintéticos no certifican calidad predictiva ni sustituyen la prueba
+del artefacto champion una vez integrado. Las seis pruebas nuevas pasan;
+la suite completa contiene 23 pruebas correctas. Comandos y límites en
+[docs/test_model.md](test_model.md).
