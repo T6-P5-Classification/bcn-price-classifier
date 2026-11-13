@@ -224,3 +224,6 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# Local notebook runtime and kernel configuration
+.jupyter/
