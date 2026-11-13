@@ -4,6 +4,32 @@ Este documento describe el contrato compartido por los notebooks de modelos.
 Las funciones de `src/cleaning.py` y `src/preprocessing.py` son la fuente de
 verdad ejecutable: los notebooks las reutilizan, no duplican su lógica.
 
+## Resumen: diez reglas para empezar un modelo
+
+1. **Carga común:** usar `load_train_test()`; no repetir limpieza, variables
+   derivadas, selección de columnas ni split en cada notebook de modelos.
+2. **Target y entradas:** aprender los umbrales solo con train y reutilizarlos
+   en test. No incluir `price` ni los campos excluidos en las features.
+3. **Pipeline completo:** usar `build_preprocessor()` dentro del Pipeline del
+   estimador; ajustar imputación, escalado y encoding en cada fold, no antes.
+4. **CV común:** `StratifiedKFold(n_splits=5, shuffle=True, random_state=42)`
+   sobre las mismas filas de entrenamiento para todos los candidatos.
+5. **Optuna sin test:** maximizar F1 macro medio de validación y registrar
+   espacio de búsqueda, semillas, pruebas y tiempo; acordar el presupuesto.
+6. **Métricas:** F1 macro principal, con `return_train_score=True`; añadir
+   precision/recall/F1 por clase, accuracy, matriz de confusión y errores extremos.
+7. **Sobreajuste y referencia:** registrar medias train/validación, dispersión
+   de validación y gap menor que 0,05; comparar con Dummy. Un gap pequeño no
+   basta para demostrar calidad.
+8. **Test reservado:** elegir mediante validación, ajustar el candidato elegido
+   con todo train y realizar la evaluación final en test, sin usarlo para ajustes.
+9. **Reproducción:** registrar datos, código y dependencias; conservar Pipeline,
+   esquema de entrada, etiquetas/mapeo y umbrales sin redondear con el modelo.
+10. **Acuerdos verificables:** documentar decisiones, evidencias y limitaciones;
+    distinguir resultados observados de hipótesis o propuestas pendientes.
+
+El detalle y las salvedades de cada regla se desarrollan a continuación.
+
 ## Objetivo y límites del producto
 
 La aplicación ayuda al anfitrión a clasificar su alojamiento en un segmento
@@ -43,6 +69,7 @@ extraer variables en feature engineering.
 - La fecha de referencia para reseñas es configurable en `engineer_features(snapshot_date=...)`; por defecto usa `last_scraped` por fila para evitar fechas futuras.
 - `bathrooms_text` se convierte en `bathrooms_count` (`Half-bath` = 0.5) y en `is_shared_bathroom` / `is_private_bathroom`.
 - `host_tenure_years` se calcula a partir de `hosts_time_as_host_years/months`; en este snapshot `host_since` está vacío.
+- `host_tenure_years` convive actualmente con `hosts_time_as_host_years` y `hosts_time_as_host_months` entre las features. Comparten información: la variable derivada combina años y meses (con el tratamiento de nulos definido en el código). Esta redundancia puede afectar a la interpretación de coeficientes; no se eliminan columnas en esta entrega documental. Su eventual retirada debe evaluarse mediante validación, sin usar test para decidir.
 - `has_reviews` se conserva de la limpieza (#7) para distinguir anuncios sin historial.
 - `days_since_last_review`, `days_since_first_review` y `review_span_days` usan por defecto `last_scraped` de cada fila; si se pasa `snapshot_date`, esa fecha se usa como referencia y las reseñas posteriores se convierten en `NaN`. Los nulos corresponden a anuncios sin reseñas.
 - `clean_listings()` realiza solo limpieza; `engineer_features()` realiza feature engineering por separado.
