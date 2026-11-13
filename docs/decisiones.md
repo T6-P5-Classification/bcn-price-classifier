@@ -399,45 +399,37 @@ incorpora un modelo de regresión de precios en esta entrega.
 
 ## Baseline de regresión logística (#18)
 
-`notebooks/04_model_logreg.ipynb` reutiliza el split y el Pipeline comunes.
-Se compara `DummyClassifier(strategy="most_frequent")` con regresión logística
-multiclase (`lbfgs`, L2 por defecto, `max_iter=5000`). Optuna maximiza F1 macro
-medio con `StratifiedKFold(5, shuffle=True, random_state=42)`, pasando siempre
-el Pipeline completo a cada fold. Se exploran `C` entre 0.001 y 100 en escala
-logarítmica y `class_weight` entre `None` y `balanced`, con TPE y semilla 42.
+El notebook reutiliza el split y las 23 variables compartidas. Compara Dummy
+most_frequent y regresión logística, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna maximiza
+la media de F1 macro de validación con TPE y semilla 42, 20 trials locales,
+C log-uniforme entre 0.001 y 100 y class_weight None/balanced. Solver lbfgs,
+L2 por defecto y max_iter=5000. El presupuesto común sigue pendiente.
 
-Estas reglas de scoring y gap siguen el contrato común integrado en dev.
-El presupuesto local de 20 trials no representa un presupuesto común acordado.
-El gap se calcula como F1 macro medio de train menos F1 macro medio de
-validación; se exige `< 0.05` absoluto (cinco puntos porcentuales). La selección
-maximiza validación; el gap se comprueba después, sin retocar contra test.
+El gap es media F1 macro train menos media F1 macro validación, con límite
+estricto <0.05 absoluto. No se ajusta contra el test reservado para cumplirlo.
+Tras elegir hiperparámetros, `cross_val_predict` produce las predicciones OOF
+de cada modelo sobre train con los mismos folds y el Pipeline completo.
+Accuracy, F1 macro, informes por clase, matrices y errores extremos usan solo
+esas predicciones. El F1 agregado OOF no sustituye la media de F1 por fold
+como criterio de selección. Las etiquetas se presentan en el orden común.
 
-El test se consulta tras congelar la selección, para ambos modelos sobre las
-mismas filas. Se guardan accuracy, F1 macro, informes por clase y matrices
-rotuladas, junto a dispersión de CV, tiempos, parámetros y procedencia.
-`docs/results/logreg_comparison.csv` alimenta `08_comparison.ipynb`;
-`logreg_details.json` conserva informes, matrices, folds, umbrales completos,
-versiones y hashes; `logreg_trials.csv` registra la búsqueda. No contienen
-filas individuales del dataset. No se publica un modelo serializado.
+El notebook no evalúa ni inspecciona los objetos de test: la evaluación del
+test reservado corresponde solo al champion elegido en #22. No se serializa
+un modelo ni se declara un champion. La tabla común contiene únicamente CV
+y diagnósticos `train_oof`, con nombres de columnas `oof_*`, no `test_*`.
+`logreg_details.json` registra informes, matrices, folds, umbrales, versiones
+y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
+predicciones individuales.
 
-La CV optimizada no es una estimación independiente. El split aleatorio no
-separa anfitriones ni fechas; las métricas describen el snapshot y protocolo
-actuales. Los bins provisionales globales y los umbrales fijos de train son
-las salvedades documentadas en la sección de split.
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. Versiones anteriores
+de #18 ya evaluaron el mismo test; retirar sus resultados de la tabla no
+deshace esa exposición histórica. Antes de presentar un resultado final
+como independiente, el equipo debe considerar ese antecedente. No se ha
+cambiado la configuración de búsqueda en respuesta a esos resultados.
 
-### Ejecución actualizada con las 23 variables compartidas
-
-La baseline de #18 se ha vuelto a ejecutar tras integrar la lista cerrada
-`MODEL_FEATURES` de dev, sin cambiar el algoritmo ni el espacio de búsqueda.
-La ejecución anterior con 71 variables queda sustituida por esta:
-F1 macro train 0.739585, validación 0.729123 ± 0.006091 y gap 0.010462
-(1.05 puntos porcentuales, menor que 5). Test: accuracy 0.721253 y F1 macro
-0.720679. La configuración elegida es `C=0.5971896122019431`,
-`class_weight=None`. Dummy mantiene accuracy 0.333466 y F1 macro 0.166716.
-
-Los resultados agregados y notebooks corresponden a esta misma ejecución.
-Se conserva el split y el test anteriores: no se trata de un nuevo conjunto
-independiente. La reducción de variables viene del contrato común de dev;
-no se ha ajustado la baseline en respuesta a sus nuevas métricas de test.
-El presupuesto local sigue siendo 20 trials, pendiente de un presupuesto
-común del equipo.
+`tests/test_logreg_notebook.py` ejecuta carga, CV, Optuna y diagnóstico con
+train sintético y objetos de test que fallan si se inspeccionan. Comprueba
+que los informes y las matrices cubren train y que no se exportan columnas
+de resultados `test_*`. La ejecución completa verifica los artefactos reales.
