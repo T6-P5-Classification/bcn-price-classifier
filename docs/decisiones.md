@@ -396,3 +396,17 @@ anunciados de alojamientos comparables por barrio, tipo y segmento, indicando
 fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
+
+## Guía de reproducción y estado documentado (#41)
+
+El README describe la instalación con Python 3.12, selección del kernel,
+fuente y atribución CC BY 4.0 de los datos, descarga ignorada por Git, las 23
+entradas y el protocolo compartido de entrenamiento/validación/test. Mantiene
+las instrucciones de preparación independientes de MongoDB y Docker.
+
+La guía corresponde al contenido integrado en dev: distingue archivos vacíos,
+app aún no operativa y champion pendiente de implementaciones terminadas.
+No inventa una URL de despliegue, un champion ni comandos dependientes de
+módulos todavía no integrados. La atribución de los datos no se presenta como
+una licencia del código. Enlaces locales, nombres de las 23 variables y estado
+de los archivos se verificaron contra este árbol de trabajo.
