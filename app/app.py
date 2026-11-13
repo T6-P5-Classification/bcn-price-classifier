@@ -6,31 +6,43 @@ Run from the repo root:  streamlit run app/app.py
 from pathlib import Path
 
 import joblib
-import numpy as np
 import pandas as pd
 import streamlit as st
 
 MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "app_model.joblib"
 CLASSES = ("Económico", "Medio", "Premium")
 
+# The 10 amenities of MODEL_FEATURES: simple yes/no questions a host can answer.
 AMENITIES = {
     "has_air_conditioning": "Aire acondicionado",
     "has_heating": "Calefacción",
-    "has_elevator": "Ascensor",
-    "has_washer": "Lavadora",
-    "has_dishwasher": "Lavavajillas",
+    "has_hair_dryer": "Secador de pelo",
     "has_tv": "TV",
+    "has_elevator": "Ascensor",
+    "has_dishwasher": "Lavavajillas",
     "has_dedicated_workspace": "Espacio de trabajo",
     "has_self_checkin": "Self check-in",
     "has_parking": "Parking",
     "has_pool": "Piscina",
 }
+# Checked by default: amenities present in most Barcelona listings (> 50 % in train).
+DEFAULT_AMENITIES = {"has_air_conditioning", "has_heating", "has_hair_dryer", "has_tv", "has_elevator"}
 
-ROOM_TYPES_ES = {
-    "Entire home/apt": "Casa o apartamento entero",
-    "Private room": "Habitación privada",
-    "Hotel room": "Habitación de hotel",
-    "Shared room": "Habitación compartida",
+PROPERTY_TYPES_ES = {
+    "Entire rental unit": "Apartamento entero",
+    "Private room in rental unit": "Habitación privada en un apartamento",
+    "Room in hotel": "Habitación de hotel",
+    "Entire serviced apartment": "Apartamento con servicios (entero)",
+    "Entire condo": "Piso en edificio residencial (entero)",
+    "Private room in hostel": "Habitación privada en un hostal",
+    "Entire loft": "Loft entero",
+    "Room in boutique hotel": "Habitación en un hotel boutique",
+    "Private room in bed and breakfast": "Habitación privada en un B&B",
+    "Private room in home": "Habitación privada en una casa",
+    "Shared room in hostel": "Habitación compartida en un hostal",
+    "Entire home": "Casa entera",
+    "Private room in condo": "Habitación privada en un piso",
+    "Shared room in hotel": "Habitación compartida en un hotel",
 }
 
 CLASS_STYLE = {
@@ -50,11 +62,13 @@ def load_artifact():
 def build_row(artifact: dict, values: dict) -> pd.DataFrame:
     """One-row DataFrame with every model column.
 
-    Fields not in the form stay empty (NaN): the pipeline fills them with the
-    train median / most frequent value, exactly as with real missing data.
+    The form must fill all 23 model variables: a missing one would be imputed
+    silently by the pipeline (worse predictions), so it raises an error instead.
     """
-    row = {column: np.nan for column in artifact["columns"]}
-    row.update(values)
+    missing = set(artifact["columns"]) - set(values)
+    if missing:
+        raise ValueError(f"Form is missing model variables: {sorted(missing)}")
+    row = {column: values[column] for column in artifact["columns"]}
     df = pd.DataFrame([row], columns=artifact["columns"])
     numeric = artifact["numeric_columns"]
     df[numeric] = df[numeric].astype(float)
@@ -122,47 +136,40 @@ form_col, result_col = st.columns([3, 2], gap="large")
 with form_col:
     with st.form("listing"):
         st.subheader("📍 Ubicación y tipo", anchor=False)
-        hood = st.selectbox("Barrio", artifact["neighbourhoods"])
-        room_type = st.selectbox(
+        # Official (Catalan) names, as on maps and on Airbnb, with the district
+        # next to them: users who do not know the neighbourhood find it by its
+        # district. Typing a district name in the box also filters the list.
+        district = artifact["hood_to_district"]
+        hood = st.selectbox(
+            "Barrio",
+            sorted(artifact["neighbourhoods"], key=lambda h: (district[h], h.lower())),
+            format_func=lambda h: f"{h[0].upper()}{h[1:]} ({district[h]})",
+        )
+        property_type = st.selectbox(
             "Tipo de alojamiento",
-            artifact["room_types"],
-            format_func=lambda value: ROOM_TYPES_ES.get(value, value),
+            artifact["property_types"],
+            format_func=lambda value: PROPERTY_TYPES_ES.get(value, value),
         )
 
         st.subheader("🛏️ Capacidad", anchor=False)
         c1, c2 = st.columns(2)
         accommodates = c1.number_input("Huéspedes", 1, 16, 2)
-        bedrooms = c2.number_input("Dormitorios", 0, 10, 1)
-        beds = c1.number_input("Camas", 0, 20, 1)
+        bedrooms = c2.number_input("Dormitorios", 0, 10, 1, help="0 si es un estudio.")
+        beds = c1.number_input("Camas", 1, 20, 1)
         bathrooms = c2.number_input("Baños", 0.0, 10.0, 1.0, step=0.5, format="%.1f")
-        shared_bath = st.checkbox("Baño compartido")
+        shared_bath = st.checkbox(
+            "Baño compartido con otras personas",
+            help="Solo para habitaciones. En un alojamiento entero no se aplica.",
+        )
+        min_nights = st.number_input("Noches mínimas", 1, 365, 2)
 
         st.subheader("✨ Servicios", anchor=False)
+        st.caption("Marca los que ofrece tu alojamiento.")
         cols = st.columns(2)
         flags = {
-            key: cols[i % 2].checkbox(
-                label, value=key in ("has_air_conditioning", "has_washer")
-            )
+            key: cols[i % 2].checkbox(label, value=key in DEFAULT_AMENITIES)
             for i, (key, label) in enumerate(AMENITIES.items())
         }
-        amenities_count = st.slider(
-            "Número total de servicios del anuncio",
-            0,
-            80,
-            29,
-            help=(
-                "Cuenta todos los servicios que aparecen en la sección «Lo que ofrece "
-                "este lugar» de tu anuncio de Airbnb, incluidos los básicos (wifi, "
-                "toallas, perchas, secador…). La mediana en Barcelona es 29. "
-                "Si no lo sabes, deja el valor por defecto."
-            ),
-        )
-
-        st.subheader("⭐ Reseñas", anchor=False)
-        c3, c4 = st.columns(2)
-        n_reviews = c3.number_input("Número de reseñas", 0, 2000, 20)
-        rating = c4.slider("Puntuación media", 0.0, 5.0, 4.7, step=0.1, format="%.1f")
-        min_nights = st.number_input("Noches mínimas", 1, 365, 2)
 
         submitted = st.form_submit_button("🔮 Predecir", type="primary", width="stretch")
 
@@ -172,26 +179,27 @@ with result_col:
         st.info("Rellena el formulario y pulsa **Predecir** para ver el rango de precio.")
     else:
         coords = artifact["hood_coords"][hood]
+        room_type = artifact["property_to_room"][property_type]
+        is_room = room_type != "Entire home/apt"
+        # Same pattern as the training data: a shared room always has a shared
+        # bathroom, and "private bathroom" only applies to rooms.
+        is_shared = room_type == "Shared room" or (is_room and shared_bath)
         values = {
             "neighbourhood_cleansed": hood,
             "neighbourhood_group_cleansed": artifact["hood_to_district"][hood],
             "latitude": coords["latitude"],
             "longitude": coords["longitude"],
+            "property_type": property_type,
             "room_type": room_type,
             "accommodates": accommodates,
             "bedrooms": bedrooms,
             "beds": beds,
-            "bathrooms_count": bathrooms,
-            "is_shared_bathroom": int(shared_bath),
-            "is_private_bathroom": int(room_type == "Private room" and not shared_bath),
-            "amenities_count": amenities_count,
             "minimum_nights": min_nights,
-            "number_of_reviews": n_reviews,
-            "has_reviews": int(n_reviews > 0),
+            "bathrooms_count": bathrooms,
+            "is_shared_bathroom": int(is_shared),
+            "is_private_bathroom": int(is_room and not is_shared),
             **{key: int(value) for key, value in flags.items()},
         }
-        if n_reviews > 0:
-            values["review_scores_rating"] = rating
 
         row = build_row(artifact, values)
         model = artifact["model"]
