@@ -424,3 +424,20 @@ La CV optimizada no es una estimación independiente. El split aleatorio no
 separa anfitriones ni fechas; las métricas describen el snapshot y protocolo
 actuales. Los bins provisionales globales y los umbrales fijos de train son
 las salvedades documentadas en la sección de split.
+
+### Ejecución actualizada con las 23 variables compartidas
+
+La baseline de #18 se ha vuelto a ejecutar tras integrar la lista cerrada
+`MODEL_FEATURES` de dev, sin cambiar el algoritmo ni el espacio de búsqueda.
+La ejecución anterior con 71 variables queda sustituida por esta:
+F1 macro train 0.739585, validación 0.729123 ± 0.006091 y gap 0.010462
+(1.05 puntos porcentuales, menor que 5). Test: accuracy 0.721253 y F1 macro
+0.720679. La configuración elegida es `C=0.5971896122019431`,
+`class_weight=None`. Dummy mantiene accuracy 0.333466 y F1 macro 0.166716.
+
+Los resultados agregados y notebooks corresponden a esta misma ejecución.
+Se conserva el split y el test anteriores: no se trata de un nuevo conjunto
+independiente. La reducción de variables viene del contrato común de dev;
+no se ha ajustado la baseline en respuesta a sus nuevas métricas de test.
+El presupuesto local sigue siendo 20 trials, pendiente de un presupuesto
+común del equipo.
