@@ -2,10 +2,10 @@
 
 | Nombre | Usuario GitHub | Rol principal |
 |---|---|---|
-| David | davidlafuentem | dueño/a de specs de datos y limpieza |
-| Esra | esrakesken | dueño/a de EDA y documentación |
-| Beste | BesteOzaydin | dueño/a de modelos y evaluación |
-| Miguel | mmatesanzg23 | dueño/a de app, despliegue y CI |
+| David | davidlafuentem | developer |
+| Esra | esrakesken | PO |
+| Beste | BesteOzaydin | developer |
+| Miguel | mmatesanzg23 | Scrum Master |
 
 ## Reglas
 
