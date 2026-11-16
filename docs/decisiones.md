@@ -396,3 +396,31 @@ anunciados de alojamientos comparables por barrio, tipo y segmento, indicando
 fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
+
+## LightGBM (#21)
+
+El notebook `notebooks/07_model_lightgbm.ipynb` reutiliza el split y las 23
+variables compartidas; el test se descarta al cargar. Todas las validaciones
+cruzadas usan el Pipeline completo, los mismos cinco folds y `n_jobs=1`.
+
+- **Referencias:** Dummy `most_frequent` (F1 macro 0,167) y LightGBM por
+  defecto (F1 validación ≈ 0,768, gap ≈ 0,11: memoriza).
+- **Optuna:** 40 pruebas secuenciales, TPE con semilla 42, solo train. Espacio:
+  `n_estimators` 100–600, `learning_rate` 0,01–0,1 (log), `num_leaves` 8–48,
+  `max_depth` 3–8, `min_child_samples` 20–150, `subsample` 0,6–1
+  (`subsample_freq=1`), `colsample_bytree` 0,5–1, `reg_lambda` 0,001–30 (log).
+  Maximiza la media de F1 macro de validación y registra el gap de cada prueba.
+- **Selección:** la mejor prueba con gap < 0,05, la misma regla que XGBoost.
+  Las pruebas con mejor validación (≈ 0,777) tienen gap de 0,14–0,19, así que
+  se acepta ≈ 1,4 puntos menos de validación a cambio de no memorizar.
+- **Resultado (validación cruzada en train):** F1 train 0,812, validación
+  0,763 ± 0,002, gap 0,049; errores extremos OOF 1,0 %. Por clase (OOF):
+  Económico 0,88, Medio 0,66, Premium 0,75.
+- **Tabla común:** `docs/results/lightgbm_comparison.csv`, con la
+  configuración completa del estimador en `params`.
+
+**Límites:** el gap queda justo por debajo del límite; otra prueba con gap
+0,043 y validación 0,761 es equivalente dentro del ruido entre folds, pero se
+mantiene la regla común sin cambiarla tras ver los resultados. Seleccionar y
+calcular OOF en los mismos folds no es validación anidada ni una evaluación
+final.
