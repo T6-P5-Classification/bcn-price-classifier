@@ -396,3 +396,54 @@ anunciados de alojamientos comparables por barrio, tipo y segmento, indicando
 fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
+
+## Baseline de regresión logística (#18)
+
+El notebook reutiliza el split y las 23 variables compartidas. Compara Dummy
+most_frequent y regresión logística, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna maximiza
+la media de F1 macro de validación con TPE y semilla 42, 20 trials locales,
+C log-uniforme entre 0.001 y 100 y class_weight None/balanced. Solver lbfgs,
+L2 por defecto y max_iter=5000. El presupuesto común sigue pendiente.
+
+El gap es media F1 macro train menos media F1 macro validación, con límite
+estricto <0.05 absoluto. No se ajusta contra el test reservado para cumplirlo.
+Tras elegir hiperparámetros, `cross_val_predict` produce las predicciones OOF
+de cada modelo sobre train con los mismos folds y el Pipeline completo.
+Accuracy, F1 macro, informes por clase, matrices y errores extremos usan solo
+esas predicciones. El F1 agregado OOF no sustituye la media de F1 por fold
+como criterio de selección. Las etiquetas se presentan en el orden común.
+
+El notebook no evalúa ni inspecciona los objetos de test: la evaluación del
+test reservado corresponde solo al champion elegido en #22. No se serializa
+un modelo ni se declara un champion. La tabla común contiene únicamente CV
+y diagnósticos `train_oof`, con nombres de columnas `oof_*`, no `test_*`.
+`logreg_details.json` registra informes, matrices, folds, umbrales, versiones
+y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
+predicciones individuales.
+
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. Versiones anteriores
+de #18 ya evaluaron el mismo test; retirar sus resultados de la tabla no
+deshace esa exposición histórica. Antes de presentar un resultado final
+como independiente, el equipo debe considerar ese antecedente. No se ha
+cambiado la configuración de búsqueda en respuesta a esos resultados.
+
+`tests/test_logreg_notebook.py` ejecuta carga, CV, Optuna y diagnóstico con
+train sintético y objetos de test que fallan si se inspeccionan. Comprueba
+que los informes y las matrices cubren train y que no se exportan columnas
+de resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+### Carga automática de la tabla común (#22)
+
+`08_comparison.ipynb` descubre todos los `docs/results/*_comparison.csv`,
+comprueba su esquema y comparabilidad y los concatena sin reentrenar.
+Añade `source_csv` para identificar el origen de cada fila y ordena por F1
+macro medio de validación. Las referencias Dummy repetidas se conservan con
+su procedencia; no se declara automáticamente un champion.
+
+Se rechazan resultados de test, scores inválidos, gaps inconsistentes y
+metadatos de snapshot/hash/CV diferentes. El contrato de columnas para los
+productores está en [model_comparison.md](model_comparison.md). Las
+instrucciones de ejecución de la baseline están en [logreg.md](logreg.md),
+para mantener esta entrega independiente de las ediciones del README general.
