@@ -48,6 +48,12 @@ python -c "import xgboost, lightgbm, sklearn; print('OK')"
 
 > En VS Code / Jupyter, selecciona el kernel de `.venv` para los notebooks.
 
+### Modelo XGBoost
+
+Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
+train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
+La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
+
 ## 🗂️ Estructura
 
 ```
