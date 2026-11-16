@@ -307,6 +307,37 @@ Comparar candidatos por validación; considerar también estabilidad entre
 folds, diferencia train/validación, coste de entrenamiento e inferencia.
 Usar `DummyClassifier` como referencia con el mismo protocolo (#18).
 
+### Presupuesto acordado para XGBoost (#20)
+
+Se fijan **40 pruebas de Optuna para XGBoost**, con las cinco particiones
+comunes y solo entrenamiento: 200 ajustes de búsqueda. El espacio de
+búsqueda, parámetros fijos, semilla TPE 42, estados y tiempo total quedan
+registrados en el notebook y los archivos agregados `docs/results/xgboost_*`.
+No hay poda, parada temprana ni ampliación automática. Cualquier ampliación
+debe acordarse antes de ejecutarla. Referencias y diagnósticos fuera de fold
+son ajustes adicionales, no nuevas pruebas de Optuna.
+
+Se maximiza F1 macro medio de validación y se selecciona la mejor prueba
+completa que cumpla `gap < 0.05`. La mejor prueba sin restricción puede no
+ser elegible. Si ninguna cumple, se informa que el requisito está pendiente,
+sin evaluar test para corregirlo ni presentar otro candidato como válido.
+
+Este acuerdo es específico de la entrega de XGBoost; no declara uniformes
+los presupuestos anteriores del equipo ni autoriza repetir otras búsquedas.
+El detalle reproducible y los límites están en [la guía de XGBoost](xgboost.md).
+La salida para la tabla común es un CSV independiente: esta issue no cambia
+el notebook compartido de selección del champion ni utiliza test.
+
+Resultado local comprobado de #20: 40 pruebas completas, 27 elegibles;
+seleccionada la de índice 34. F1 macro medio de ajuste 0,81135 y validación
+0,76312 (desviación poblacional 0,00324); gap medio 0,04824. Se cumple el
+criterio para la **media**, no para cada fold ni para cualquier población.
+Frente a XGBoost por defecto (validación 0,77342; gap 0,15220), se acepta
+aproximadamente un punto menos de F1 para reducir el gap. No se afirma una
+mejora de puntuación. Accuracy OOF 0,76299 y tasa extrema 102/10.088; test
+sin evaluar. Parámetros, tiempos, versiones, métricas por clase y límites
+quedan en la guía específica y los resultados agregados.
+
 ### Métricas e interpretación
 
 - **Principal: F1 macro**, media del F1 de las tres clases con el mismo peso.
