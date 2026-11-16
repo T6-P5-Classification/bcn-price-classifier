@@ -227,3 +227,6 @@ data/processed/*
 
 # Modelos entrenados (se generan con python -m src.train_app_model)
 models/*.joblib
+
+# Local notebook runtime and kernel configuration
+.jupyter/

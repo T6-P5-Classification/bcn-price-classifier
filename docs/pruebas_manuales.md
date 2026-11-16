@@ -141,6 +141,49 @@ Archivo: `notebooks/02_eda_classes.ipynb`.
    del código existente. El éxito del notebook y el de los tests son hechos
    separados; no se han evaluado métricas predictivas en esta issue.
 
+## Issue 20 — XGBoost con 40 pruebas de Optuna
+
+1. **Preparación:** desde la raíz del proyecto, usar `feat/20-xgboost` hasta
+   que se integre, entorno `.venv` y el CSV del README. Comprobar
+   `python -c "import xgboost; print(xgboost.__version__)"`. Solo lee software
+   instalado; si falla por OpenMP, no entrenar hasta resolver la dependencia
+   siguiendo el README. No reinstalar dependencias compartidas sin revisar.
+2. **Tests sintéticos:** ejecutar `python -m pytest -q tests/test_xgboost_model.py`
+   y después `python -m pytest -q`. Ejecuta ajustes pequeños con datos sintéticos;
+   no lee el CSV real ni evalúa calidad predictiva en producción. Puede crear
+   cachés locales. Esperado: todas las pruebas pasan.
+3. **Inspección de entrega:** abrir `notebooks/06_model_xgboost.ipynb` y los
+   archivos `docs/results/xgboost_*`. Esta lectura no cambia registros.
+   Comprobar 23 variables, 40 pruebas completas, cinco folds por prueba,
+   candidato con gap < 0,05 y test sin evaluar. La tabla de los diez mejores
+   trials no es el registro completo: el CSV de trials debe tener 40 filas.
+4. **Reproducción opcional:** antes de repetir, conservar copia del notebook
+   y de los tres archivos agregados si se quiere mantener la ejecución anterior.
+   Ejecutar `python tools/run_xgboost_notebook.py` desde la raíz. Lee el CSV,
+   consume CPU y reemplaza esas cuatro salidas; no usa servicios remotos, no
+   modifica datos y no guarda modelos ni predicciones individuales. No ejecutar
+   a la vez desde el editor. Esperado: ejecución completa sin errores de celda.
+5. **Métricas:** en `xgboost_details.json`, comprobar `test_evaluated=false`,
+   `nested_cv=false`, 23 campos en `input_schema`, mapeo Económico=0/Medio=1/
+   Premium=2 y registro de versiones/firmas. Revisar `selected_cv`: media train
+   menos media validación debe coincidir con gap, sin redondear para aprobarlo.
+   No confundir la media de F1 por fold con el F1 agregado OOF.
+6. **Errores:** cada matriz debe sumar las filas de entrenamiento (10.088 para
+   este snapshot); filas reales y columnas predichas, orden común de clases.
+   Revisar precision/recall/F1 por categoría. La tasa extrema divide ambas
+   confusiones Económico/Premium entre TODOS los anuncios OOF.
+7. **Integración:** el CSV de comparación tiene las 18 columnas descritas en
+   `docs/xgboost.md` y no tiene columnas `test_*`. Confirmar que el lector común
+   ya está integrado antes de exigir que aparezca XGBoost en la comparación.
+   Esta issue no sustituye ni implementa ese lector o la elección del champion.
+8. **Fallo:** detenerse ante columna ausente, error de celda o ningún trial
+   elegible. Anotar celda/comando y mensaje, comprobar datos/entorno y solicitar
+   revisión; no borrar tests, ampliar pruebas o consultar test para forzar
+   aceptación. Un archivo de resultados previo no acredita una ejecución fallida.
+
+Estas comprobaciones no autorizan publicación, aprobación ni merge. Los
+resultados concretos de la ejecución se resumen en `docs/xgboost.md`.
+
 ## Revisión de entregas documentales y automatización
 
 - Decisiones comunes: leer `docs/decisiones.md` en la versión correspondiente
