@@ -922,6 +922,30 @@ donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
 (p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
 arrancar).
 
+## Docker Compose: app + base de datos (#26)
+
+`docker-compose.yml` arranca dos servicios:
+
+- **`app`**: la imagen de #29. `FEEDBACK_DIR=/app/data/feedback` en el volumen
+  `feedback-data`: las predicciones y respuestas (CSV de #23) se conservan al
+  parar, recrear o reconstruir el contenedor. Arranca cuando MongoDB está sano
+  (`depends_on: service_healthy`).
+- **`mongo`**: `mongo:7.0.14` (versión exacta), datos en el volumen
+  `mongo-data`, healthcheck con `mongosh` y **sin puerto publicado**: solo la
+  app puede conectarse, por la red interna de Compose
+  (`MONGODB_URI=mongodb://mongo:27017/bcn_price_classifier`).
+
+**Alcance:** la app todavía no escribe en MongoDB; eso es #27, que solo tiene
+que leer `MONGODB_URI` y sustituir el almacenamiento de
+`src/feedback_store.py` (ver `docs/feedback.md`). Para uso local sin
+autenticación; en un despliegue real (#28, MongoDB Atlas) la URI con
+credenciales iría en un `.env` fuera de Git.
+
+**Comprobado en local:** ambos servicios `healthy`, app con HTTP 200, la app
+alcanza `mongo:27017`, MongoDB sin puertos publicados, y una predicción con
+respuesta sigue guardada tras `docker compose down` y `up`. Tests estáticos
+en `tests/test_docker_compose.py`.
+
 ## Tests de métricas mínimas (#32)
 
 `src/model_quality.py` define los mínimos y `quality_problems()`, que devuelve

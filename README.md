@@ -149,6 +149,19 @@ La imagen usa `requirements-app.txt` (solo lo que necesita la app, mismas
 versiones) y `.dockerignore` deja fuera datos, `.venv`, notebooks y docs. El
 puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
 
+### Docker Compose: app + base de datos (#26)
+
+```bash
+python -m src.train_app_model   # el modelo no está en Git
+docker compose up --build       # app en http://localhost:8501
+docker compose down             # para; los datos se conservan
+```
+
+Arranca la app y MongoDB. Las predicciones y el feedback se guardan en el
+volumen `feedback-data`, así que se conservan al parar o recrear los
+contenedores (`docker compose down -v` los borra). MongoDB queda disponible
+para la app en `MONGODB_URI`; usarlo para guardar los datos es #27.
+
 ## 🗂️ Estructura
 
 ```
