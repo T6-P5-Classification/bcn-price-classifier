@@ -459,6 +459,20 @@ fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
 
+## Contrato funcional de inferencia (#31)
+
+`tests/test_model.py` prueba un Pipeline real con el preprocesador compartido,
+23 entradas sintéticas y un estimador LogisticRegression de referencia.
+Comprueba etiquetas, tamaño, probabilidades y su orden de clases, nulos,
+categorías desconocidas, orden de columnas, columnas obligatorias y persistencia
+joblib. La prueba de nulos confirma que inferencia no reaprende las medianas.
+No cambia las funciones compartidas ni las decisiones de otros modelos.
+
+Los tests sintéticos no certifican calidad predictiva ni sustituyen la prueba
+del artefacto champion una vez integrado. Las seis pruebas comprueban este contrato con datos sintéticos. La suite
+completa debe ejecutarse de nuevo al actualizar desde `dev`. Comandos y límites en
+[docs/test_model.md](test_model.md).
+
 ## Modelo Random Forest (#19)
 
 El notebook reutiliza el split y las 23 variables compartidas. Compara
@@ -776,3 +790,25 @@ de la regresión logística provisional:
 generándose localmente y no se sube a Git; su uso en Docker/Render se decide
 en #29/#33.
 
+### Resultado de la evaluación única en test (#22)
+
+Ejecutada una vez el 17/11/2026 con XGBoost ajustado en todo train
+(`notebooks/08b_champion_test.ipynb`, registro en
+`docs/results/champion_test.json`, código de `dev` en 960e9c6).
+
+| | Validación cruzada (train) | Test |
+|---|---|---|
+| F1 macro | 0,7631 | 0,7651 |
+| Accuracy | 0,7630 | 0,7645 |
+| Errores extremos | 1,01 % | 1,23 % (31 de 2.522) |
+
+Por clase en test: Económico F1 0,869, Medio 0,669, Premium 0,758. La
+confusión más frecuente es Medio ↔ Premium (180 anuncios reales Medio
+predichos Premium y 195 reales Premium predichos Medio).
+
+En esta partición de test, el F1 macro observado (0,7651) es cercano al F1
+macro medio de validación (0,7631). Es un resultado compatible con el
+rendimiento estimado durante la selección, pero no demuestra ausencia de
+sobreajuste ni rendimiento futuro. Se mantienen las limitaciones del reparto
+aleatorio, el único snapshot y la exposición histórica del test. Tras ver el
+resultado no se cambia el modelo, las variables ni los hiperparámetros.
