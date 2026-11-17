@@ -12,8 +12,9 @@ ingresos, ocupación futura ni el precio finalmente pagado.
 
 La rama de integración es `dev`. Están disponibles la limpieza, el feature
 engineering, la selección de 23 entradas, el split y el preprocesamiento
-compartidos. Los notebooks de modelos, el champion y la aplicación se integran
-por entregas: un archivo presente pero vacío no constituye una implementación.
+compartidos, los notebooks de los cuatro modelos y la app básica de Streamlit
+con modelo provisional. La integración del champion y el despliegue siguen
+pendientes; un archivo presente pero vacío no constituye una implementación.
 
 Requisitos locales: Git, **Python 3.12**, acceso al dataset y espacio para un
 entorno virtual. En macOS, XGBoost y LightGBM necesitan OpenMP (`libomp`).
@@ -288,14 +289,28 @@ Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
 train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
 La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
+### App Streamlit (#15)
+
+Desde la raíz, con el entorno activo y el snapshot en `data/raw/`:
+
+```bash
+python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git)
+streamlit run app/app.py
+```
+
+El modelo de la app es **provisional** (regresión logística) hasta que se
+integre el champion (#22/#23); la app lo indica en pantalla. Los tests de la
+app (`tests/test_app.py`) usan un modelo sintético y no necesitan el snapshot.
+
 
 ## Aplicación y entregables pendientes
 
-En `dev`, `app/app.py` es todavía un esqueleto y no hay un champion serializado
-en `models/`. No se publica una URL de despliegue ni se presenta la app como
-operativa. La integración de la app, feedback, MongoDB, Docker, reentrenamiento
-y drift se entregan en sus propias issues. Sus contratos de ejecución deben
-documentarse al integrarse; no son requisitos para reproducir el split.
+En `dev` está integrada la app básica de Streamlit descrita arriba. Utiliza
+un modelo provisional generado localmente; todavía no incorpora el champion
+ni un despliegue público verificado. La integración del champion, la persistencia
+del feedback, MongoDB, Docker, reentrenamiento y drift se entregan en sus propias
+issues. Sus contratos deben documentarse al integrarse; no son requisitos para
+reproducir el split.
 
 La elección del champion corresponde a `notebooks/08_comparison.ipynb` cuando
 estén disponibles los resultados comparables de los modelos. No asumir que
@@ -304,7 +319,7 @@ el primer modelo entrenado es el champion.
 ## Estructura y colaboración
 
 ```text
-app/          Aplicación Streamlit (en desarrollo)
+app/          Aplicación Streamlit con modelo provisional
 data/raw/     Snapshot descargado localmente; ignorado por Git
 data/processed/  Datos derivados locales; ignorados por Git
 models/       Artefactos de modelos, cuando se integren
