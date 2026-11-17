@@ -119,3 +119,25 @@ def test_boundaries_are_inclusive_for_minimums_and_strict_for_the_gap():
 ])
 def test_incomplete_or_invalid_metrics_are_not_accepted(change):
     assert quality_problems(**{**GOOD, **change}) != []
+
+
+@pytest.mark.parametrize("change", [
+    {"f1_macro": 1.5},
+    {"class_f1": {**GOOD["class_f1"], "Medio": 2}},
+    {"extreme_error_rate": -0.2},
+    {"dummy_f1_macro": -1},
+    {"gap": 1.5},
+    {"f1_macro": True},
+    {"class_f1": {**GOOD["class_f1"], "Premium": True}},
+    {"extreme_error_rate": False},
+])
+def test_impossible_metrics_are_not_accepted(change):
+    """F1 and rates outside [0, 1], or booleans, must never pass as a good model."""
+    metrics = {**GOOD, "gap": 0.048, "dummy_f1_macro": 0.167, **change}
+    assert quality_problems(**metrics) != []
+
+
+def test_exact_limits_of_the_ranges_are_valid():
+    perfect = {"f1_macro": 1, "class_f1": {label: 1.0 for label in TARGET_LABELS},
+               "extreme_error_rate": 0}
+    assert quality_problems(**perfect, gap=0.0, dummy_f1_macro=0.0) == []

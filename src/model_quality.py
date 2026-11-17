@@ -35,13 +35,18 @@ def quality_problems(
     ``gap`` and ``dummy_f1_macro`` are optional because a single test
     evaluation has no train/validation gap or Dummy reference.
     """
-    values = [f1_macro, extreme_error_rate, *class_f1.values()]
-    if gap is not None:
-        values.append(gap)
+    # F1 scores and rates are proportions in [0, 1]; the gap (train - validation
+    # F1) is a difference of two of them, so it lies in [-1, 1].
+    proportions = [f1_macro, extreme_error_rate, *class_f1.values()]
     if dummy_f1_macro is not None:
-        values.append(dummy_f1_macro)
-    if not all(isinstance(v, (int, float)) and math.isfinite(v) for v in values):
+        proportions.append(dummy_f1_macro)
+    values = proportions + ([gap] if gap is not None else [])
+    # bool is a subclass of int in Python: True would be read as a perfect 1.0.
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+               for v in values):
         return ["métricas no numéricas o no finitas"]
+    if not all(0 <= v <= 1 for v in proportions) or (gap is not None and not -1 <= gap <= 1):
+        return ["métricas fuera de rango (F1 y tasas entre 0 y 1, gap entre -1 y 1)"]
     if set(class_f1) != set(TARGET_LABELS):
         return [f"faltan clases en el F1 por clase: {sorted(set(TARGET_LABELS) - set(class_f1))}"]
 

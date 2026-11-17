@@ -947,3 +947,8 @@ selección (el champion se eligió en #22 con la regla acordada). Se fijaron
 modelo claramente peor (p. ej. tras reentrenar en #34, que puede reutilizar
 `quality_problems()` antes de sustituir el modelo) sin fallar por pequeñas
 diferencias aleatorias. El gap mantiene el límite acordado de 0,05.
+
+**Entradas inválidas:** `quality_problems()` no da por bueno un modelo con
+métricas imposibles. Rechaza valores no numéricos, no finitos o booleanos
+(`True` contaría como F1 = 1), F1 y tasas fuera de [0, 1] y un gap fuera de
+[−1, 1]. Así, un error de cálculo no puede dejar pasar un modelo en #34.
