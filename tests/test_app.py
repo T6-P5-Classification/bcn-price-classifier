@@ -5,6 +5,7 @@ works and passes the right inputs, not the quality of its predictions. They
 need neither the Airbnb snapshot nor the real model file.
 """
 
+import json
 import sys
 from pathlib import Path
 
@@ -19,10 +20,13 @@ from streamlit.testing.v1 import AppTest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from app_logic import bathroom_flags, build_row, check_room_type, form_to_values, predict  # noqa: E402
+from app_logic import (  # noqa: E402
+    bathroom_flags, build_row, check_room_type, form_to_values, model_notice, predict,
+)
 from src.cleaning import MODEL_FEATURES  # noqa: E402
 from src.preprocessing import TARGET_LABELS, build_preprocessor  # noqa: E402
-from src.train_app_model import class_labels  # noqa: E402
+from src.train_app_model import champion_model, class_labels, held_out_summary  # noqa: E402
+from src.xgboost_model import FIXED_PARAMS  # noqa: E402
 
 APP = str(ROOT / "app" / "app.py")
 CATEGORICAL = ["neighbourhood_cleansed", "neighbourhood_group_cleansed", "property_type", "room_type"]
@@ -101,9 +105,9 @@ def form(**changes):
 
 @pytest.fixture
 def run_app(tmp_path, monkeypatch):
-    def run(numeric_labels=False):
+    def run(numeric_labels=False, **extra):
         path = tmp_path / ("numeric.joblib" if numeric_labels else "text.joblib")
-        joblib.dump(make_artifact(numeric_labels), path)
+        joblib.dump({**make_artifact(numeric_labels), **extra}, path)
         monkeypatch.setenv("APP_MODEL_PATH", str(path))
         return AppTest.from_file(APP, default_timeout=30).run()
     return run
@@ -215,3 +219,51 @@ def test_app_explains_an_inconsistent_room_and_bathroom(run_app):
     at.button[0].click().run()
     assert not at.exception
     assert "privado o compartido" in at.error[0].value
+
+
+# --- Champion (#23) -------------------------------------------------------
+
+def test_champion_model_uses_the_selected_xgboost_parameters():
+    details = json.loads((ROOT / "docs/results/xgboost_details.json").read_text())
+    params = champion_model().named_steps["model"].get_params()
+    for key, value in {**FIXED_PARAMS, **details["selected_params"]}.items():
+        assert params[key] == pytest.approx(value) if isinstance(value, float) else params[key] == value
+
+
+def test_champion_model_stops_if_parameters_differ_from_the_comparison(tmp_path):
+    results = tmp_path / "results"
+    results.mkdir()
+    source = ROOT / "docs/results"
+    details = json.loads((source / "xgboost_details.json").read_text())
+    details["selected_params"]["max_depth"] = 2
+    (results / "xgboost_details.json").write_text(json.dumps(details))
+    (results / "xgboost_comparison.csv").write_text((source / "xgboost_comparison.csv").read_text())
+    with pytest.raises(ValueError, match="differ"):
+        champion_model(results)
+
+
+def test_held_out_summary_is_optional_and_reads_the_single_evaluation(tmp_path):
+    assert held_out_summary(tmp_path) is None
+    record = {"test": {"f1_macro": 0.7651, "accuracy": 0.7645}, "n_test": 2522}
+    (tmp_path / "champion_test.json").write_text(json.dumps(record))
+    assert held_out_summary(tmp_path) == {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}
+
+
+def test_notice_distinguishes_provisional_and_champion_models():
+    assert model_notice({"model_name": "LogReg"}).startswith("Modelo provisional")
+    champion = {"model_name": "XGBoost", "provisional": False,
+                "test_metrics": {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}}
+    text = model_notice(champion)
+    assert "provisional" not in text and "XGBoost" in text
+    assert "2.522 anuncios" in text and "76 %" in text and "0,765" in text
+    assert "no recomienda un precio" in text  # limits are always shown
+    assert "provisional" not in model_notice({**champion, "test_metrics": None})
+
+
+def test_app_shows_the_champion_notice(run_app):
+    at = run_app(numeric_labels=True, model_name="XGBoost", provisional=False,
+                 test_metrics={"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522})
+    at.button[0].click().run()
+    assert not at.exception
+    assert "Modelo: XGBoost" in at.warning[0].value
+    assert "provisional" not in at.warning[0].value

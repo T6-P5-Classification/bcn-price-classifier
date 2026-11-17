@@ -705,8 +705,8 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   las clases del modelo al nombre mostrado. Sirve tanto para modelos con
   etiquetas de texto (regresión logística) como numéricas 0/1/2 (XGBoost con
   `LABEL_TO_INT`), así que cambiar al champion no rompe la app.
-- **Aviso en pantalla:** el modelo actual es provisional (regresión
-  logística). El resultado estima un segmento de precio anunciado; no
+- **Aviso en pantalla:** mientras el modelo era provisional (regresión
+  logística) se indicaba así; desde #23 la app usa el champion (ver abajo). El resultado estima un segmento de precio anunciado; no
   recomienda un precio ni garantiza la clasificación. Se muestra la
   «probabilidad estimada por el modelo», no una «confianza».
 - **Tests (`tests/test_app.py`):** modelo sintético, sin snapshot. Comprueban
@@ -751,3 +751,28 @@ Medio. No se demuestra su causa, significación de diferencias pequeñas ni
 se elige champion. No se guardan predicciones individuales ni se sustituye
 la tabla de métricas original. RF sigue identificado como reconstrucción
 local no idéntica al origen; los otros tres reproducen sus métricas OOF.
+
+## Champion en la app (#23)
+
+`src/train_app_model.py` entrena ahora el **champion XGBoost** de #22 en lugar
+de la regresión logística provisional:
+
+- Pipeline de `src/xgboost_model.py` con los hiperparámetros de la prueba
+  seleccionada (`xgboost_details.json`). Antes de ajustar se comprueba que los
+  parámetros efectivos coinciden con la fila ganadora de
+  `xgboost_comparison.csv`; si no, se detiene.
+- Ajuste con **todo train** y la codificación acordada (Económico=0, Medio=1,
+  Premium=2); `class_labels` traduce las clases a sus nombres en la app. No se
+  usa test para entrenar ni para elegir nada.
+- El aviso bajo el resultado indica el modelo y, si existe
+  `champion_test.json`, su resultado en la evaluación única de test
+  (accuracy y F1 macro). Se mantienen los límites: estima un segmento de
+  precio anunciado, no recomienda un precio ni garantiza la clasificación.
+- Tests: parámetros del champion, parada si difieren de la comparación,
+  lectura opcional del resultado de test, aviso de champion frente a
+  provisional y AppTest con un modelo de etiquetas numéricas.
+
+**Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
+generándose localmente y no se sube a Git; su uso en Docker/Render se decide
+en #29/#33.
+

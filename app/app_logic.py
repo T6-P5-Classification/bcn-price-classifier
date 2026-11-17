@@ -119,6 +119,30 @@ def build_row(artifact: dict, values: dict) -> pd.DataFrame:
     return df
 
 
+LIMITS = (
+    "El resultado estima un segmento de precio anunciado; no recomienda un "
+    "precio ni garantiza una clasificación correcta. La probabilidad es la del "
+    "modelo, no una garantía de acierto."
+)
+
+
+def model_notice(artifact: dict) -> str:
+    """Text under the result: which model it is and what it can(not) say."""
+    if artifact.get("provisional", True):
+        return f"Modelo provisional para demostración ({artifact['model_name']}). {LIMITS}"
+    notice = f"Modelo: {artifact['model_name']}, elegido entre cuatro modelos comparados."
+    metrics = artifact.get("test_metrics")
+    if metrics:
+        accuracy = f"{metrics['accuracy']:.0%}".replace("%", " %")
+        f1 = f"{metrics['f1_macro']:.3f}".replace(".", ",")
+        n_test = f"{metrics['n_test']:,}".replace(",", ".")
+        notice += (
+            f" En {n_test} anuncios que no vio al entrenar acertó la "
+            f"categoría en el {accuracy} de los casos (F1 macro {f1})."
+        )
+    return f"{notice} {LIMITS}"
+
+
 def predict(artifact: dict, row: pd.DataFrame) -> tuple[str, pd.Series]:
     """Predicted class name and probabilities indexed by class name.
 
