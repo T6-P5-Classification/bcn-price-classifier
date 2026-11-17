@@ -92,6 +92,8 @@ solo porque ya tenga una revisión o una propuesta abierta.
 
 Esta entrega está preparada en la rama `test/30-data-integrity`; comprobar
 si ya fue integrada antes de elegir rama. Sus tests no requieren Airbnb.
+La corrección se prepara con la base `dev` de commit `6795cd6`, manteniendo
+el esquema de 23 variables acordado.
 
 Desde la raíz, con el entorno virtual activado:
 
@@ -100,13 +102,39 @@ python -m pytest -q tests/test_data.py
 python -m pytest -q
 ```
 
-Esperado para esa entrega: 11 tests de integridad y 25 tests en total. No
-esperar el total de 25 en una rama que todavía no los contiene.
+Esperado para esta entrega: 11 tests de integridad correctos. El total de
+la suite depende de las otras entregas incorporadas; no usar el antiguo
+total de 25 como contrato fijo.
 
 Los controles comprueban precios válidos, separación e identidad de filas,
 esquema y variables prohibidas, nulos permitidos, umbrales solo de train,
 categorías coherentes, estratificación provisional, reproducibilidad,
 precios exactamente en los límites y error con precios no separables.
+
+1. Con la rama indicada y el entorno activado, ejecutar primero el comando
+   específico y después la suite completa. Ambos realizan cálculos locales,
+   crean archivos sintéticos temporales y pueden escribir cachés; no leen
+   el CSV de Airbnb, no usan credenciales ni modifican servicios remotos.
+2. En `tests/test_data.py`, comprobar que el caso de esquema exige todas las
+   columnas de `MODEL_FEATURES` en orden y mantiene las prohibiciones
+   independientes de precio e identificadores. La tabla ficticia debe aportar
+   barrio, distrito y tipo de propiedad, además de las demás entradas.
+3. En el caso de ausencias, verificar que se comparan los valores completos
+   de `minimum_nights` con las filas originales, incluidos sus nulos, sin
+   acceder a `minimum_nights_was_missing`.
+4. Leer el README: deben estar presentes la guía de tests y la documentación
+   vigente de modelos, sin marcadores de conflicto. Esta lectura no cambia
+   archivos ni autoriza publicación. No se reentrenan modelos en esta corrección.
+5. Si falla un test, anotar el nombre y el error y detener la publicación.
+   No recuperar variables descartadas ni eliminar protecciones para forzar
+   un resultado correcto. Un fallo de entorno se distingue de una regresión.
+
+Resultado comprobado de esta corrección: antes, 2 fallos y 9 tests de
+integridad correctos; después, 11 correctos y 56 correctos en la suite
+completa con esta base. Además, se comprobó en memoria con datos sintéticos
+que los controles rechazan una columna acordada ausente, columnas en orden
+alterado, precio infiltrado y nulos de `minimum_nights` rellenados antes de
+tiempo. Estas comprobaciones no modificaron código de producción ni datos reales.
 
 ## Issue 10 — EDA por categoría real
 

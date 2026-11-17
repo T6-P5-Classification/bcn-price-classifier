@@ -478,3 +478,22 @@ metadatos de snapshot/hash/CV diferentes. El contrato de columnas para los
 productores está en [model_comparison.md](model_comparison.md). Las
 instrucciones de ejecución de la baseline están en [logreg.md](logreg.md),
 para mantener esta entrega independiente de las ediciones del README general.
+
+## Tests de integridad de datos (#30): adaptación a las 23 variables
+
+Los tests de `tests/test_data.py` emplean CSV comprimidos sintéticos y la
+carga real `load_train_test()`, sin leer el snapshot ni evaluar su test
+reservado. Se completa la tabla ficticia con barrio, distrito y tipo de
+propiedad para cubrir todas las entradas actuales. Ambos conjuntos deben
+coincidir exactamente con `MODEL_FEATURES`, incluido su orden, y conservar
+los mismos tipos. Se mantienen comprobaciones independientes que prohíben
+precio, identificadores, datos personales y campos derivados de ingresos:
+usar la lista compartida no elimina esas protecciones.
+
+Los nulos de `minimum_nights` deben conservarse en las filas correspondientes,
+sin rellenado previo a la imputación del Pipeline. No se exige el indicador
+`minimum_nights_was_missing` ni las antiguas entradas `amenities_count` o
+`has_clothes_dryer`, que ya no pertenecen al modelo acordado. Se actualizan
+expectativas de los tests, no las reglas de preparación ni el conjunto de
+variables. La guía de ejecución está en el README y la verificación en
+`docs/pruebas_manuales.md`, sección de la issue 30.
