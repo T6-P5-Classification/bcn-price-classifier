@@ -128,7 +128,7 @@ Fuente: [docs/results/logreg_details.json](https://github.com/T6-P5-Classificati
 
 Beste: regresión logística
 Miguel: Random Forest
-David: XGBoost 
+David: XGBoost
 Esra: LightGBM
 
 ### Notas para explicar
