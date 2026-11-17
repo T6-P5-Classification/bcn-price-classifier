@@ -822,3 +822,32 @@ de la regresión logística provisional:
 **Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
 generándose localmente y no se sube a Git; su uso en Docker/Render se decide
 en #29/#33.
+
+## Predicciones y feedback (#23)
+
+La app guarda **cada predicción** y, opcionalmente, el **precio real por
+noche** que indica el anfitrión. El contrato completo está en
+`docs/feedback.md`; el acceso se hace solo con `src/feedback_store.py`.
+
+- **Por qué cada predicción y no solo el feedback:** #36 (drift) y #25
+  (métricas) necesitan todas las entradas y salidas, y #27 pide guardar
+  «predicciones y feedback».
+- **Por qué el precio y no un «¿acertó?»:** con el precio se obtiene la clase
+  real con la misma regla y umbrales que el target, y #24 puede recalcular
+  umbrales con datos nuevos.
+- **Dos tablas** (`predictions`, `feedback`) unidas por `prediction_id`, una
+  respuesta como máximo por predicción. Cada predicción guarda sus umbrales,
+  `model_name`, `model_version` y `variant` (para #35).
+- **Almacenamiento:** CSV en `data/feedback/` (fuera de Git), carpeta
+  configurable con `FEEDBACK_DIR`. #27 sustituye solo `_append`/`_read` por
+  MongoDB; las funciones públicas y los campos no cambian.
+- **App:** si no se puede guardar, la predicción se muestra igualmente y no
+  se ofrece el formulario de respuesta. El resultado se conserva en pantalla
+  al enviar la respuesta (`st.session_state`).
+- **Privacidad:** sin datos personales ni texto libre.
+- **Tests:** `tests/test_feedback_store.py` (contrato de columnas, clase real
+  en los límites, rechazo de precios no válidos, una respuesta por
+  predicción, unión) y AppTest del flujo predicción → respuesta.
+
+**Límites:** respuestas voluntarias y no verificadas; en Render el disco no
+es permanente, por lo que para conservar datos hace falta MongoDB.

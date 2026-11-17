@@ -4,6 +4,7 @@ Run from the repo root:  streamlit run app/app.py
 """
 
 import os
+import sys
 from pathlib import Path
 
 import joblib
@@ -18,6 +19,10 @@ from app_logic import (
     model_notice,
     predict,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))  # for src.feedback_store
+from src.feedback_store import save_feedback, save_prediction  # noqa: E402
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -185,9 +190,9 @@ with form_col:
 
 with result_col:
     st.subheader("🏷️ Resultado", anchor=False)
-    if not submitted:
+    if not submitted and "last" not in st.session_state:
         st.info("Rellena el formulario y pulsa **Predecir** para ver el rango de precio.")
-    else:
+    if submitted:
         form = {
             "hood": hood,
             "property_type": property_type,
@@ -207,7 +212,27 @@ with result_col:
             st.stop()
 
         prediction, probabilities = predict(artifact, build_row(artifact, values))
+        # Every prediction is stored (#23): #25 metrics, #36 drift, #27 MongoDB.
+        try:
+            prediction_id = save_prediction(
+                values, prediction, probabilities.to_dict(),
+                model_name=artifact["model_name"],
+                model_version=artifact.get("model_version", "desconocida"),
+                thresholds=artifact["thresholds"],
+            )
+        except OSError:
+            prediction_id = None  # storage unavailable: still show the result
+        st.session_state["last"] = {
+            "prediction": prediction,
+            "probabilities": probabilities.to_dict(),
+            "prediction_id": prediction_id,
+            "feedback": None,
+        }
 
+    last = st.session_state.get("last")
+    if last:
+        prediction = last["prediction"]
+        probabilities = pd.Series(last["probabilities"])
         st.markdown(
             result_card(prediction, ranges[prediction], probabilities[prediction]),
             unsafe_allow_html=True,
@@ -219,6 +244,31 @@ with result_col:
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)
         st.warning(model_notice(artifact), icon="⚠️")
+
+        st.subheader("💬 ¿Nos ayudas a mejorar?", anchor=False)
+        if last["feedback"]:
+            outcome = "acertó" if last["feedback"]["correct"] else "no acertó"
+            st.success(
+                f"¡Gracias! Con {euros(last['feedback']['real_price'])} la categoría real es "
+                f"**{last['feedback']['real_class']}**: el modelo {outcome}."
+            )
+        elif last["prediction_id"] is None:
+            st.caption("No se ha podido guardar la predicción, así que no se puede enviar respuesta.")
+        else:
+            with st.form("feedback"):
+                real_price = st.number_input(
+                    "Precio real por noche de tu anuncio (€)",
+                    min_value=0.0, value=None, step=1.0, format="%.2f",
+                    help="Opcional. Solo se guarda el precio y las respuestas del formulario, "
+                         "sin datos personales.",
+                )
+                sent = st.form_submit_button("Enviar")
+            if sent:
+                try:
+                    last["feedback"] = save_feedback(last["prediction_id"], real_price)
+                    st.rerun()
+                except ValueError as error:
+                    st.error(str(error))
 
 st.divider()
 st.caption(

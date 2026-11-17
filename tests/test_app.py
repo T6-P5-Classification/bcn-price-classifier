@@ -111,6 +111,7 @@ def run_app(tmp_path, monkeypatch):
         path = tmp_path / ("numeric.joblib" if numeric_labels else "text.joblib")
         joblib.dump({**make_artifact(numeric_labels), **extra}, path)
         monkeypatch.setenv("APP_MODEL_PATH", str(path))
+        monkeypatch.setenv("FEEDBACK_DIR", str(tmp_path / "feedback"))
         return AppTest.from_file(APP, default_timeout=30).run()
     return run
 
@@ -322,3 +323,34 @@ def test_app_shows_the_champion_notice(run_app):
     assert not at.exception
     assert "Modelo: XGBoost" in at.warning[0].value
     assert "provisional" not in at.warning[0].value
+
+
+# --- Feedback (#23) -------------------------------------------------------
+
+def test_each_prediction_is_stored_and_feedback_is_linked(run_app, tmp_path):
+    from src.feedback_store import load_labelled, load_predictions
+    at = run_app()
+    at.button[0].click().run()
+    assert not at.exception
+    stored = load_predictions(tmp_path / "feedback")
+    assert len(stored) == 1 and stored["predicted_class"].iloc[0] in TARGET_LABELS
+
+    price = next(n for n in at.number_input if n.label.startswith("Precio real"))
+    price.set_value(300.0)
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    assert not at.exception
+    assert "Premium" in at.success[0].value  # 300 € is Premium with the test thresholds
+    labelled = load_labelled(tmp_path / "feedback")
+    assert len(labelled) == 1 and labelled["real_class"].iloc[0] == "Premium"
+    # The result stays on screen after sending feedback.
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+
+
+def test_feedback_without_price_shows_an_error_and_saves_nothing(run_app, tmp_path):
+    from src.feedback_store import load_feedback
+    at = run_app()
+    at.button[0].click().run()
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    assert not at.exception
+    assert "mayor que 0" in at.error[0].value
+    assert load_feedback(tmp_path / "feedback").empty

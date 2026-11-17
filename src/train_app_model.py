@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -129,6 +130,18 @@ def held_out_summary(provenance: dict, results=RESULTS) -> dict | None:
             "n_test": record["n_test"]}
 
 
+def model_version() -> str:
+    """Identifier of the trained artifact stored with every prediction."""
+    trial = json.loads((RESULTS / "xgboost_details.json").read_text())["selected_trial"]
+    try:
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        commit = "sin-git"
+    return f"xgboost-trial{trial}-{commit}"
+
+
 def main() -> None:
     X_train, _, y_train, _, thresholds = load_train_test(return_thresholds=True)
     assert list(X_train.columns) == list(MODEL_FEATURES), "Expected the 23 MODEL_FEATURES"
@@ -171,6 +184,7 @@ def main() -> None:
         .to_dict(),
         "hood_coords": by_hood[["latitude", "longitude"]].median().to_dict("index"),
         "model_name": "XGBoost",
+        "model_version": model_version(),
         "provisional": False,
         "test_metrics": test_metrics,
         "provenance": provenance,
