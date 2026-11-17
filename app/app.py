@@ -16,13 +16,14 @@ from app_logic import (
     ROOM_TYPES_ES,
     build_row,
     form_to_values,
-    model_notice,
+    customer_notice,
+    model_details,
     predict,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # for src.feedback_store
-from src.feedback_store import save_feedback, save_prediction  # noqa: E402
+from src.feedback_store import StorageError, save_feedback, save_prediction  # noqa: E402
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -220,7 +221,7 @@ with result_col:
                 model_version=artifact.get("model_version", "desconocida"),
                 thresholds=artifact["thresholds"],
             )
-        except OSError:
+        except StorageError:
             prediction_id = None  # storage unavailable: still show the result
         st.session_state["last"] = {
             "prediction": prediction,
@@ -243,7 +244,9 @@ with result_col:
         )
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)
-        st.warning(model_notice(artifact), icon="⚠️")
+        st.caption(customer_notice(artifact))
+        with st.expander("ℹ️ Sobre el modelo"):
+            st.markdown(model_details(artifact))
 
         st.subheader("💬 ¿Nos ayudas a mejorar?", anchor=False)
         if last["feedback"]:
@@ -269,6 +272,9 @@ with result_col:
                     st.rerun()
                 except ValueError as error:
                     st.error(str(error))
+                except StorageError:
+                    # Keep the result on screen and do not confirm a failed save.
+                    st.warning("No hemos podido guardar tu respuesta. Inténtalo de nuevo más tarde.")
 
 st.divider()
 st.caption(

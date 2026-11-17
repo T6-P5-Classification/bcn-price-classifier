@@ -1,11 +1,14 @@
 """Storage of app predictions and feedback (#23): the contract other issues use."""
 
 import math
+import threading
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from src.cleaning import MODEL_FEATURES
+import src.feedback_store as feedback_module
 from src.feedback_store import (
     FEEDBACK_COLUMNS,
     PREDICTION_COLUMNS,
@@ -131,3 +134,72 @@ def test_storage_folder_can_be_set_with_feedback_dir(tmp_path, monkeypatch):
     store(None)
     assert (tmp_path / "custom" / "predictions.csv").exists()
     assert isinstance(load_predictions(), pd.DataFrame) and len(load_predictions()) == 1
+
+
+# --- Review fixes -------------------------------------------------------------
+
+@pytest.mark.parametrize("probabilities", [
+    {"Económico": -0.5, "Medio": 1.0, "Premium": 0.5},
+    {"Económico": 2.0, "Medio": 0.0, "Premium": 0.0},
+    {"Económico": math.nan, "Medio": 0.5, "Premium": 0.5},
+    {"Económico": 0.2, "Medio": 0.2, "Premium": 0.2},
+    {"Económico": "0.2", "Medio": 0.4, "Premium": 0.4},
+])
+def test_invalid_probabilities_are_rejected_before_writing(tmp_path, probabilities):
+    with pytest.raises(ValueError, match="Probabilities"):
+        save_prediction(listing(), "Medio", probabilities, model_name="m", model_version="v",
+                        thresholds=THRESHOLDS, directory=tmp_path)
+    assert load_predictions(tmp_path).empty
+
+
+def test_numpy_probabilities_from_xgboost_are_accepted(tmp_path):
+    probabilities = {k: np.float32(v) for k, v in PROBABILITIES.items()}
+    save_prediction(listing(), "Medio", probabilities, model_name="m", model_version="v",
+                    thresholds=THRESHOLDS, directory=tmp_path)
+    assert load_predictions(tmp_path)["prob_medio"].iloc[0] == pytest.approx(0.65)
+
+
+def test_simultaneous_answers_save_only_one_per_prediction(tmp_path):
+    """Review case: two concurrent submissions for the same prediction."""
+    for _ in range(10):
+        prediction_id = store(tmp_path)
+        barrier = threading.Barrier(4)
+        results = []
+
+        def answer(price):
+            barrier.wait()
+            try:
+                save_feedback(prediction_id, price, directory=tmp_path)
+                results.append("saved")
+            except ValueError:
+                results.append("rejected")
+
+        threads = [threading.Thread(target=answer, args=(p,)) for p in (90, 150, 300, 500)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        assert sorted(results) == ["rejected"] * 3 + ["saved"]
+        assert (load_feedback(tmp_path)["prediction_id"] == prediction_id).sum() == 1
+    assert len(load_feedback(tmp_path)) == 10
+    assert not (tmp_path / ".lock").exists()
+
+
+def test_write_errors_become_storage_errors(tmp_path, monkeypatch):
+    def failing_to_csv(*args, **kwargs):
+        raise OSError("disco lleno")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", failing_to_csv)
+    with pytest.raises(feedback_module.StorageError, match="No se ha podido guardar"):
+        store(tmp_path)
+    assert not (tmp_path / ".lock").exists()  # the lock is released after an error
+
+
+def test_a_lock_left_by_a_crashed_process_is_ignored(tmp_path):
+    import os
+    lock = tmp_path / ".lock"
+    lock.touch()
+    old = lock.stat().st_mtime - feedback_module.STALE_LOCK - 5
+    os.utime(lock, (old, old))
+    store(tmp_path)
+    assert len(load_predictions(tmp_path)) == 1

@@ -50,13 +50,25 @@ load_labelled()     # predicciones con respuesta: entradas + salida + precio y c
 La carpeta por defecto es `data/feedback/`; se puede cambiar con la variable
 de entorno `FEEDBACK_DIR` (tests, Docker) o con el argumento `directory=`.
 
+## Garantías y errores
+
+- **Una respuesta por predicción**, también con envíos simultáneos: la
+  comprobación y la escritura se hacen bajo un bloqueo de archivo (válido en
+  macOS, Linux y Windows). Un segundo envío da `ValueError`.
+- **Validación antes de escribir:** las 23 variables, una clase conocida y
+  probabilidades finitas entre 0 y 1 que suman 1; precio real > 0.
+- **`StorageError`:** cualquier fallo de lectura o escritura (disco, permisos,
+  archivo dañado) se convierte en este error común. La app lo captura: muestra
+  igualmente la predicción y no confirma un guardado fallido. #27 debe lanzar
+  el mismo `StorageError` desde MongoDB.
+
 ## Para cada issue
 
 | Issue | Qué usar |
 |---|---|
 | **#24** Datos nuevos para reentrenar (`src/new_data.py`) | `load_labelled()`: las 23 variables y `real_price`. Se guarda el **precio**, no solo la clase, para poder recalcular umbrales con datos nuevos. |
 | **#25** Métricas en tiempo real | `load_labelled()` para acierto (`correct`), F1 y matriz real/predicha; `load_predictions()` para número de predicciones y distribución de clases. |
-| **#27** MongoDB (`src/database.py`) | Sustituir solo `_append` y `_read` de `src/feedback_store.py` por MongoDB (colecciones `predictions` y `feedback`, mismos campos). Las funciones públicas no cambian. |
+| **#27** MongoDB (`src/database.py`) | Sustituir solo `_lock`, `_append` y `_read` de `src/feedback_store.py` por MongoDB (colecciones `predictions` y `feedback`, mismos campos). Mantener una respuesta por predicción (p. ej. índice único en `feedback.prediction_id`) y lanzar `StorageError` en los fallos. Las funciones públicas no cambian. |
 | **#34** Reentrenamiento | Los datos de #24. |
 | **#35** A/B testing | Pasar `variant="challenger"` a `save_prediction()` y comparar por `variant`. |
 | **#36** Data drift | `load_predictions()`: distribución de las 23 variables frente a train. |
