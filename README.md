@@ -140,3 +140,7 @@ models/      Modelos entrenados
 tests/       Tests con pytest
 docs/        Decisiones e informe técnico
 ```
+
+## Informe técnico
+
+[Problema, datos, evaluación y resultados del proyecto](docs/informe_tecnico.md).
