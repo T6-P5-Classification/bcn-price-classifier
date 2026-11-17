@@ -660,7 +660,10 @@ nuevo tras ver los resultados.
 **Evaluación final:** `notebooks/08b_champion_test.ipynb` ajusta el Pipeline
 de XGBoost (prueba 34 de Optuna, `src/xgboost_model.py`) con todo train y lo
 evalúa **una sola vez** en test. Guarda `docs/results/champion_test.json` y se
-detiene si ese archivo ya existe. Después no se cambian modelo, variables ni
+detiene si ese archivo ya existe, tanto al principio como en la propia celda
+de evaluación (antes de predecir); el archivo se crea en modo exclusivo y no
+se sobrescribe. Antes de ajustar comprueba que los parámetros efectivos del
+modelo son exactamente los de la fila ganadora del CSV de comparación. Después no se cambian modelo, variables ni
 hiperparámetros. Se declara la exposición histórica del test por la baseline
 de #18, que no guió esta elección. Antes de evaluar se comprobó, solo con
 train, que el Pipeline reproduce la CV registrada (0,763119).

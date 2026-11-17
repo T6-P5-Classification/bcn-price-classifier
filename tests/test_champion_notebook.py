@@ -18,12 +18,14 @@ import pytest
 import src.cleaning  # noqa: F401  (imported before the notebook changes sys.path)
 import src.preprocessing as preprocessing
 import src.xgboost_model  # noqa: F401
+from src.xgboost_model import FIXED_PARAMS
 from src.cleaning import MODEL_FEATURES
 from src.preprocessing import TARGET_LABELS
 
 matplotlib.use("Agg")
 NOTEBOOK = Path(__file__).resolve().parents[1] / "notebooks/08b_champion_test.ipynb"
 THRESHOLDS = {"lower": 122.0, "upper": 249.72}
+SELECTED = {"n_estimators": 10, "max_depth": 2, "learning_rate": 0.1}
 
 
 def synthetic_split(n_train=150, n_test=60, seed=0):
@@ -67,7 +69,9 @@ def project(tmp_path, monkeypatch):
     results.mkdir(parents=True)
     common = dict(cv_validation_std=0.003, oof_accuracy=0.76, oof_extreme_error_rate=0.01,
                   snapshot="2026-09-17", raw_sha256=sha)
-    pd.DataFrame([dict(model="XGBoost", cv_validation_f1_macro=0.7631, gap=0.048, **common)]) \
+    winner_params = json.dumps({**FIXED_PARAMS, **SELECTED}, sort_keys=True)
+    pd.DataFrame([dict(model="XGBoost", cv_validation_f1_macro=0.7631, gap=0.048,
+                       params=winner_params, **common)]) \
         .to_csv(results / "xgboost_comparison.csv", index=False)
     pd.DataFrame([dict(model="LightGBM", cv_validation_f1_macro=0.7630, gap=0.049, **common),
                   dict(model="DummyClassifier", cv_validation_f1_macro=0.9, gap=0.0, **common)]) \
@@ -75,7 +79,7 @@ def project(tmp_path, monkeypatch):
     details = {
         "selected_trial": 34, "test_evaluated": False, "train_rows": 150,
         "thresholds": THRESHOLDS, "provenance": {"raw_sha256": sha},
-        "selected_params": {"n_estimators": 10, "max_depth": 2, "learning_rate": 0.1},
+        "selected_params": dict(SELECTED),
     }
     (results / "xgboost_details.json").write_text(json.dumps(details))
 
@@ -93,12 +97,21 @@ def project(tmp_path, monkeypatch):
     return tmp_path, calls
 
 
-def run_notebook():
-    namespace = {}
-    for cell in json.loads(NOTEBOOK.read_text())["cells"]:
-        if cell["cell_type"] == "code":
-            exec(compile("".join(cell["source"]), "08b_champion_test.ipynb", "exec"), namespace)
+def code_cells():
+    return ["".join(c["source"]) for c in json.loads(NOTEBOOK.read_text())["cells"]
+            if c["cell_type"] == "code"]
+
+
+def run_notebook(namespace=None):
+    namespace = {} if namespace is None else namespace
+    for source in code_cells():
+        exec(compile(source, "08b_champion_test.ipynb", "exec"), namespace)
     return namespace
+
+
+def evaluation_cell():
+    (source,) = [s for s in code_cells() if "champion.predict(X_test)" in s]
+    return source
 
 
 def test_full_run_saves_one_complete_record(project):
@@ -143,3 +156,46 @@ def test_any_mismatch_stops_before_predicting_test(project, change):
     with pytest.raises(AssertionError):
         run_notebook()
     assert not (results / "champion_test.json").exists()
+
+
+def test_rerunning_the_evaluation_cell_stops_before_predicting(project):
+    """Re-running only the evaluation cell must not predict test again."""
+    root, _ = project
+    namespace = run_notebook()
+    output = root / "docs/results/champion_test.json"
+    first = output.read_text()
+    calls = {"predict": 0}
+    original_predict = namespace["champion"].predict
+
+    def counting_predict(X):
+        calls["predict"] += 1
+        return original_predict(X)
+
+    namespace["champion"].predict = counting_predict
+    with pytest.raises(RuntimeError, match="ya existe"):
+        exec(compile(evaluation_cell(), "08b_champion_test.ipynb", "exec"), namespace)
+    assert calls["predict"] == 0
+    assert output.read_text() == first
+
+
+def test_parameters_must_match_the_winning_csv_row(project):
+    """Review case: CSV winner with max_depth=9 but JSON with max_depth=2."""
+    root, _ = project
+    results = root / "docs/results"
+    frame = pd.read_csv(results / "xgboost_comparison.csv")
+    frame.loc[0, "params"] = json.dumps({**FIXED_PARAMS, **SELECTED, "max_depth": 9})
+    frame.to_csv(results / "xgboost_comparison.csv", index=False)
+    with pytest.raises(AssertionError, match="no coinciden"):
+        run_notebook()
+    assert not (results / "champion_test.json").exists()
+
+
+def test_effective_model_parameters_are_checked_before_fitting(project, monkeypatch):
+    """If the pipeline builder ignored a parameter, the notebook stops before fitting."""
+    root, _ = project
+    real_make_pipeline = src.xgboost_model.make_pipeline
+    monkeypatch.setattr(src.xgboost_model, "make_pipeline",
+                        lambda params: real_make_pipeline({**params, "max_depth": 5}))
+    with pytest.raises(AssertionError, match="parámetros del candidato ganador"):
+        run_notebook()
+    assert not (root / "docs/results/champion_test.json").exists()
