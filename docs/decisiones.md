@@ -633,6 +633,40 @@ Son asociaciones descriptivas de este snapshot, no causas, rankings estables
 de zonas pequeñas ni calidad predictiva demostrada. Reproducción, resultados
 y límites: [EDA por distritos y room_type](eda_distritos_room_type.md).
 
+## Tabla comparativa y champion (#22)
+
+`notebooks/08_comparison.ipynb` reúne los `*_comparison.csv` de los cuatro
+modelos (validación cruzada en train, mismos folds, snapshot y hash) y añade
+una tabla legible para la presentación, con una sola fila Dummy.
+
+**Regla de elección (acordada antes de ver los resultados):** mejor F1 macro
+medio de validación entre los modelos con gap < 0,05, sin contar Dummy. El
+notebook la aplica en código.
+
+| Modelo | F1 val (media ± std) | Gap | Errores extremos (OOF) |
+|---|---|---|---|
+| **XGBoost** | **0,7631 ± 0,0032** | 0,048 | 1,0 % |
+| LightGBM | 0,7630 ± 0,0018 | 0,0495 | 1,0 % |
+| Random Forest | 0,7594 ± 0,0056 | 0,046 | 1,0 % |
+| Regresión logística | 0,7291 ± 0,0061 | 0,010 | 1,2 % |
+| Dummy | 0,1668 | 0,000 | 33,3 % |
+
+**Champion: XGBoost**, confirmado por el equipo el 17/11/2026. LightGBM queda en empate práctico: la diferencia
+(0,0001) es mucho menor que la desviación entre folds, y en los mismos cinco
+folds cada uno gana en dos (uno igualado). Ambos serían defendibles; se
+mantiene la regla fijada de antemano en lugar de elegir con un criterio
+nuevo tras ver los resultados.
+
+**Evaluación final:** `notebooks/08b_champion_test.ipynb` ajusta el Pipeline
+de XGBoost (prueba 34 de Optuna, `src/xgboost_model.py`) con todo train y lo
+evalúa **una sola vez** en test. Guarda `docs/results/champion_test.json` y se
+detiene si ese archivo ya existe, tanto al principio como en la propia celda
+de evaluación (antes de predecir); el archivo se crea en modo exclusivo y no
+se sobrescribe. Antes de ajustar comprueba que los parámetros efectivos del
+modelo son exactamente los de la fila ganadora del CSV de comparación. Después no se cambian modelo, variables ni
+hiperparámetros. Se declara la exposición histórica del test por la baseline
+de #18, que no guió esta elección. Antes de evaluar se comprobó, solo con
+train, que el Pipeline reproduce la CV registrada (0,763119).
 ## App Streamlit (#15)
 
 La app (`app/app.py`) pide al anfitrión las 23 variables de `MODEL_FEATURES`
