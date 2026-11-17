@@ -835,10 +835,15 @@ en #29/#33.
 - **`.dockerignore` como lista de permitidos:** entran `app/`, `src/`,
   `.streamlit/`, el modelo y `requirements-app.txt`; quedan fuera datos
   (raw, processed, feedback), `.venv`, notebooks y docs.
+  Después de las reglas de permitidos se excluyen expresamente secretos
+  (`.env`, `.env.*`, `secrets.toml`, `*.pem`, `*.key`) aunque estén en
+  carpetas permitidas; comprobado con archivos ficticios.
 - **Modelo:** se copia `models/app_model.joblib`, que se genera en local con
   `python -m src.train_app_model` (no está en Git). Si falta, `docker build`
   falla al copiarlo.
-- **Ejecución:** usuario sin privilegios, puerto configurable con `PORT`
+- **Ejecución:** Streamlit se lanza con `exec`, así recibe la señal de
+  parada y `docker stop` termina limpio (código 0, no 137). Usuario sin
+  privilegios, puerto configurable con `PORT`
   (8501 por defecto; Render asigna el suyo), `HEALTHCHECK` en
   `/_stcore/health` y carpeta `data/` escribible para la app.
 - **Comprobado en local:** la imagen se construye, el contenedor queda

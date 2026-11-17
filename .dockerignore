@@ -8,3 +8,11 @@
 !models/app_model.joblib
 **/__pycache__
 **/*.pyc
+
+# Secretos: nunca dentro de la imagen, aunque estén en carpetas permitidas.
+# Van después de los "!" para que tengan prioridad.
+**/.env
+**/.env.*
+**/secrets.toml
+**/*.pem
+**/*.key

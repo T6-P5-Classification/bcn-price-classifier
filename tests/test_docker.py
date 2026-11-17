@@ -38,3 +38,19 @@ def test_dockerfile_runs_the_app_safely_on_the_given_port():
     assert "USER appuser" in dockerfile
     assert "--server.port=${PORT}" in dockerfile and "--server.address=0.0.0.0" in dockerfile
     assert "HEALTHCHECK" in dockerfile and "/_stcore/health" in dockerfile
+
+
+def test_secrets_are_excluded_even_inside_allowed_folders():
+    """Exclusions must come after the "!" rules, otherwise those rules win."""
+    lines = [l.strip() for l in (ROOT / ".dockerignore").read_text().splitlines()
+             if l.strip() and not l.startswith("#")]
+    last_allow = max(i for i, l in enumerate(lines) if l.startswith("!"))
+    after = lines[last_allow + 1:]
+    for pattern in ["**/.env", "**/.env.*", "**/secrets.toml"]:
+        assert pattern in after, pattern
+
+
+def test_streamlit_receives_the_stop_signal():
+    """exec replaces the shell, so `docker stop` ends Streamlit cleanly (not code 137)."""
+    cmd = next(l for l in (ROOT / "Dockerfile").read_text().splitlines() if l.startswith("CMD"))
+    assert '"exec streamlit run' in cmd
