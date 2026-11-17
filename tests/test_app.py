@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
 from app_logic import (  # noqa: E402
-    bathroom_flags, build_row, check_room_type, form_to_values, model_notice, predict,
+    bathroom_flags, build_row, check_room_type, customer_notice, form_to_values, model_details, predict,
 )
 from src.cleaning import MODEL_FEATURES  # noqa: E402
 from src.preprocessing import TARGET_LABELS, build_preprocessor  # noqa: E402
@@ -111,6 +111,7 @@ def run_app(tmp_path, monkeypatch):
         path = tmp_path / ("numeric.joblib" if numeric_labels else "text.joblib")
         joblib.dump({**make_artifact(numeric_labels), **extra}, path)
         monkeypatch.setenv("APP_MODEL_PATH", str(path))
+        monkeypatch.setenv("FEEDBACK_DIR", str(tmp_path / "feedback"))
         return AppTest.from_file(APP, default_timeout=30).run()
     return run
 
@@ -198,7 +199,9 @@ def test_app_loads_and_predicts(run_app, numeric_labels):
     page = " ".join(m.value for m in at.markdown)
     assert any(label in page for label in TARGET_LABELS)
     assert "Probabilidad estimada por el modelo" in page
-    assert "Modelo provisional para demostración" in at.warning[0].value
+    captions = " ".join(c.value for c in at.caption)
+    assert "No es una recomendación de precio" in captions and "provisional" in captions
+    assert "Modelo provisional para demostración" in at.expander[0].markdown[0].value
 
 
 def test_app_rejects_entire_apartment_rented_as_shared_room(run_app):
@@ -304,15 +307,26 @@ def test_test_metrics_of_another_model_or_data_are_rejected(tmp_path, change, me
         held_out_summary(PROVENANCE, tmp_path)
 
 
-def test_notice_distinguishes_provisional_and_champion_models():
-    assert model_notice({"model_name": "LogReg"}).startswith("Modelo provisional")
-    champion = {"model_name": "XGBoost", "provisional": False,
-                "test_metrics": {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}}
-    text = model_notice(champion)
+CHAMPION = {"model_name": "XGBoost", "provisional": False,
+            "test_metrics": {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}}
+
+
+def test_customer_notice_is_short_and_plain():
+    text = customer_notice(CHAMPION)
+    assert text.startswith("Estimación orientativa")
+    assert "No es una recomendación de precio" in text and "puede no acertar" in text
+    for jargon in ["F1", "XGBoost", "macro", "modelos comparados"]:
+        assert jargon not in text  # technical details go in «Sobre el modelo»
+    assert "provisional" in customer_notice({"model_name": "LogReg"})
+
+
+def test_model_details_distinguish_provisional_and_champion_models():
+    assert model_details({"model_name": "LogReg"}).startswith("Modelo provisional")
+    text = model_details(CHAMPION)
     assert "provisional" not in text and "XGBoost" in text
     assert "2.522 anuncios" in text and "76 %" in text and "0,765" in text
-    assert "no recomienda un precio" in text  # limits are always shown
-    assert "provisional" not in model_notice({**champion, "test_metrics": None})
+    assert "no recomienda un precio" in text  # limits are always available
+    assert "provisional" not in model_details({**CHAMPION, "test_metrics": None})
 
 
 def test_app_shows_the_champion_notice(run_app):
@@ -320,5 +334,66 @@ def test_app_shows_the_champion_notice(run_app):
                  test_metrics={"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522})
     at.button[0].click().run()
     assert not at.exception
-    assert "Modelo: XGBoost" in at.warning[0].value
-    assert "provisional" not in at.warning[0].value
+    assert "Modelo XGBoost" in at.expander[0].markdown[0].value
+    assert at.expander[0].label == "ℹ️ Sobre el modelo"
+    assert not any("provisional" in c.value for c in at.caption)
+    assert not at.warning  # no technical warning box for the host
+
+
+# --- Feedback (#23) -------------------------------------------------------
+
+def test_each_prediction_is_stored_and_feedback_is_linked(run_app, tmp_path):
+    from src.feedback_store import load_labelled, load_predictions
+    at = run_app()
+    at.button[0].click().run()
+    assert not at.exception
+    stored = load_predictions(tmp_path / "feedback")
+    assert len(stored) == 1 and stored["predicted_class"].iloc[0] in TARGET_LABELS
+
+    price = next(n for n in at.number_input if n.label.startswith("Precio real"))
+    price.set_value(300.0)
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    assert not at.exception
+    assert "Premium" in at.success[0].value  # 300 € is Premium with the test thresholds
+    labelled = load_labelled(tmp_path / "feedback")
+    assert len(labelled) == 1 and labelled["real_class"].iloc[0] == "Premium"
+    # The result stays on screen after sending feedback.
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+
+
+def test_feedback_without_price_shows_an_error_and_saves_nothing(run_app, tmp_path):
+    from src.feedback_store import load_feedback
+    at = run_app()
+    at.button[0].click().run()
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    assert not at.exception
+    assert "mayor que 0" in at.error[0].value
+    assert load_feedback(tmp_path / "feedback").empty
+
+
+def test_storage_failure_keeps_the_result_and_does_not_confirm(run_app, tmp_path, monkeypatch):
+    """Review case: a write error while saving feedback must not crash the app."""
+    import src.feedback_store as store
+    at = run_app()
+    at.button[0].click().run()
+
+    def broken_append(*args, **kwargs):
+        raise store.StorageError("disco lleno")
+
+    monkeypatch.setattr(store, "_append", broken_append)
+    next(n for n in at.number_input if n.label.startswith("Precio real")).set_value(150.0)
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    assert not at.exception
+    assert "No hemos podido guardar" in at.warning[0].value
+    assert not at.success
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+
+
+def test_prediction_is_shown_even_if_it_cannot_be_stored(run_app, monkeypatch):
+    import src.feedback_store as store
+    monkeypatch.setattr(store, "_append", lambda *a, **k: (_ for _ in ()).throw(store.StorageError("x")))
+    at = run_app()
+    at.button[0].click().run()
+    assert not at.exception
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+    assert not any(b.label == "Enviar" for b in at.button)  # no feedback without a stored prediction

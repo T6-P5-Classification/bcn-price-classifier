@@ -845,6 +845,50 @@ de la regresión logística provisional:
 generándose localmente y no se sube a Git; su uso en Docker/Render se decide
 en #29/#33.
 
+## Predicciones y feedback (#23)
+
+La app guarda **cada predicción** y, opcionalmente, el **precio real por
+noche** que indica el anfitrión. El contrato completo está en
+`docs/feedback.md`; el acceso se hace solo con `src/feedback_store.py`.
+
+- **Por qué cada predicción y no solo el feedback:** #36 (drift) y #25
+  (métricas) necesitan todas las entradas y salidas, y #27 pide guardar
+  «predicciones y feedback».
+- **Por qué el precio y no un «¿acertó?»:** con el precio se obtiene la clase
+  real con la misma regla y umbrales que el target, y #24 puede recalcular
+  umbrales con datos nuevos.
+- **Dos tablas** (`predictions`, `feedback`) unidas por `prediction_id`, una
+  respuesta como máximo por predicción. Cada predicción guarda sus umbrales,
+  `model_name`, `model_version` y `variant` (para #35).
+- **Almacenamiento:** CSV en `data/feedback/` (fuera de Git), carpeta
+  configurable con `FEEDBACK_DIR`. #27 sustituye solo `_append`/`_read` por
+  MongoDB; las funciones públicas y los campos no cambian.
+- **Una respuesta por predicción, también con envíos simultáneos:** la
+  comprobación y la escritura se hacen bajo un bloqueo de archivo portable
+  (macOS, Linux, Windows); un bloqueo abandonado por un proceso caído se
+  ignora tras 60 s. Las probabilidades se validan (finitas, entre 0 y 1,
+  suman 1) antes de escribir.
+- **Errores de almacenamiento:** se convierten en `StorageError`, común a CSV
+  y a la futura implementación MongoDB. La app lo captura: si falla guardar
+  la predicción, la muestra igualmente sin formulario de respuesta; si falla
+  guardar la respuesta, mantiene el resultado y muestra un aviso, sin
+  confirmar el guardado. El resultado se conserva en pantalla al enviar la
+  respuesta (`st.session_state`).
+- **Aviso para el anfitrión:** bajo el resultado, una frase sencilla
+  («Estimación orientativa… No es una recomendación de precio y puede no
+  acertar»). Los detalles técnicos (modelo, resultado en test, F1 macro y
+  límites) quedan en un desplegable «ℹ️ Sobre el modelo», para no mostrar
+  jerga a quien usa la app sin ocultar la información.
+- **Privacidad:** sin datos personales ni texto libre.
+- **Tests:** `tests/test_feedback_store.py` (contrato de columnas, clase real
+  en los límites, rechazo de precios y probabilidades no válidos, una
+  respuesta por predicción también con cuatro envíos simultáneos, errores de
+  escritura, bloqueo abandonado, unión) y AppTest del flujo predicción →
+  respuesta, de los fallos de almacenamiento y del aviso sencillo.
+
+**Límites:** respuestas voluntarias y no verificadas; en Render el disco no
+es permanente, por lo que para conservar datos hace falta MongoDB.
+
 ## Dockerfile de la app (#29)
 
 - **Base `python:3.12-slim`** (versión del proyecto) y `libgomp1`, que XGBoost

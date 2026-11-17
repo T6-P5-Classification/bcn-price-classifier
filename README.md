@@ -131,6 +131,10 @@ de Optuna seleccionada, ajustado con todo train (no usa test). Si existe
 test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
 necesitan el snapshot.
 
+Cada predicción y, si el usuario lo indica, su precio real por noche se
+guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
+reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
+
 ### Docker (#29)
 
 El modelo no está en Git: se genera antes de construir la imagen.
