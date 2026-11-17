@@ -125,9 +125,11 @@ python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git
 streamlit run app/app.py
 ```
 
-El modelo de la app es **provisional** (regresión logística) hasta que se
-integre el champion (#22/#23); la app lo indica en pantalla. Los tests de la
-app (`tests/test_app.py`) usan un modelo sintético y no necesitan el snapshot.
+La app usa el **champion XGBoost** (#22): los hiperparámetros de la prueba
+de Optuna seleccionada, ajustado con todo train (no usa test). Si existe
+`docs/results/champion_test.json`, la app muestra también su resultado en
+test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
+necesitan el snapshot.
 
 ## 🗂️ Estructura
 

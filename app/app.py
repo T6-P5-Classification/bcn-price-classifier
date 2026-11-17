@@ -10,7 +10,14 @@ import joblib
 import pandas as pd
 import streamlit as st
 
-from app_logic import BATHROOM_OPTIONS, ROOM_TYPES_ES, build_row, form_to_values, predict
+from app_logic import (
+    BATHROOM_OPTIONS,
+    ROOM_TYPES_ES,
+    build_row,
+    form_to_values,
+    model_notice,
+    predict,
+)
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -211,13 +218,7 @@ with result_col:
         )
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)
-        st.warning(
-            f"Modelo provisional para demostración ({artifact['model_name']}). "
-            "El resultado estima un segmento de precio anunciado; no recomienda "
-            "un precio ni garantiza una clasificación correcta. La probabilidad "
-            "es la del modelo, no una garantía de acierto.",
-            icon="⚠️",
-        )
+        st.warning(model_notice(artifact), icon="⚠️")
 
 st.divider()
 st.caption(
