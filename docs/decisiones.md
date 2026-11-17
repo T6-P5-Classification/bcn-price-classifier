@@ -338,6 +338,36 @@ acepta aproximadamente 0,0185 puntos menos de F1 para reducir el gap de unos
 buen ejemplo de por qué se usa el límite de gap. Accuracy OOF 0,75882 y tasa
 extrema 0,00971; test sin evaluar. Parámetros, tiempos, versiones, métricas
 por clase y límites quedan en el notebook y los resultados agregados.
+### Presupuesto acordado para XGBoost (#20)
+
+Se fijan **40 pruebas de Optuna para XGBoost**, con las cinco particiones
+comunes y solo entrenamiento: 200 ajustes de búsqueda. El espacio de
+búsqueda, parámetros fijos, semilla TPE 42, estados y tiempo total quedan
+registrados en el notebook y los archivos agregados `docs/results/xgboost_*`.
+No hay poda, parada temprana ni ampliación automática. Cualquier ampliación
+debe acordarse antes de ejecutarla. Referencias y diagnósticos fuera de fold
+son ajustes adicionales, no nuevas pruebas de Optuna.
+
+Se maximiza F1 macro medio de validación y se selecciona la mejor prueba
+completa que cumpla `gap < 0.05`. La mejor prueba sin restricción puede no
+ser elegible. Si ninguna cumple, se informa que el requisito está pendiente,
+sin evaluar test para corregirlo ni presentar otro candidato como válido.
+
+Este acuerdo es específico de la entrega de XGBoost; no declara uniformes
+los presupuestos anteriores del equipo ni autoriza repetir otras búsquedas.
+El detalle reproducible y los límites están en [la guía de XGBoost](xgboost.md).
+La salida para la tabla común es un CSV independiente: esta issue no cambia
+el notebook compartido de selección del champion ni utiliza test.
+
+Resultado local comprobado de #20: 40 pruebas completas, 27 elegibles;
+seleccionada la de índice 34. F1 macro medio de ajuste 0,81135 y validación
+0,76312 (desviación poblacional 0,00324); gap medio 0,04824. Se cumple el
+criterio para la **media**, no para cada fold ni para cualquier población.
+Frente a XGBoost por defecto (validación 0,77342; gap 0,15220), se acepta
+aproximadamente un punto menos de F1 para reducir el gap. No se afirma una
+mejora de puntuación. Accuracy OOF 0,76299 y tasa extrema 102/10.088; test
+sin evaluar. Parámetros, tiempos, versiones, métricas por clase y límites
+quedan en la guía específica y los resultados agregados.
 
 ### Métricas e interpretación
 
@@ -450,6 +480,17 @@ con gap 0,04612, es decir, unos 0,0185 puntos menos de F1 que el modelo por
 defecto a cambio de reducir el gap de 0,21 a menos de 0,05. Solo 8 de las
 40 pruebas cumplen `gap < 0,05`.
 
+## Baseline de regresión logística (#18)
+
+El notebook reutiliza el split y las 23 variables compartidas. Compara Dummy
+most_frequent y regresión logística, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna maximiza
+la media de F1 macro de validación con TPE y semilla 42, 20 trials locales,
+C log-uniforme entre 0.001 y 100 y class_weight None/balanced. Solver lbfgs,
+L2 por defecto y max_iter=5000. El presupuesto común sigue pendiente.
+
+El gap es media F1 macro train menos media F1 macro validación, con límite
+estricto <0.05 absoluto. No se ajusta contra el test reservado para cumplirlo.
 Tras elegir hiperparámetros, `cross_val_predict` produce las predicciones OOF
 de cada modelo sobre train con los mismos folds y el Pipeline completo.
 Accuracy, F1 macro, informes por clase, matrices y errores extremos usan solo
@@ -477,3 +518,51 @@ cambia el notebook compartido de selección del champion ni utiliza test.
 sintético y objetos de test que fallan si se inspeccionan. Comprueba que los
 informes y las matrices cubren train y que no se exportan columnas de
 resultados `test_*`. La ejecución completa verifica los artefactos reales.
+`logreg_details.json` registra informes, matrices, folds, umbrales, versiones
+y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
+predicciones individuales.
+
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. Versiones anteriores
+de #18 ya evaluaron el mismo test; retirar sus resultados de la tabla no
+deshace esa exposición histórica. Antes de presentar un resultado final
+como independiente, el equipo debe considerar ese antecedente. No se ha
+cambiado la configuración de búsqueda en respuesta a esos resultados.
+
+`tests/test_logreg_notebook.py` ejecuta carga, CV, Optuna y diagnóstico con
+train sintético y objetos de test que fallan si se inspeccionan. Comprueba
+que los informes y las matrices cubren train y que no se exportan columnas
+de resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+### Carga automática de la tabla común (#22)
+
+`08_comparison.ipynb` descubre todos los `docs/results/*_comparison.csv`,
+comprueba su esquema y comparabilidad y los concatena sin reentrenar.
+Añade `source_csv` para identificar el origen de cada fila y ordena por F1
+macro medio de validación. Las referencias Dummy repetidas se conservan con
+su procedencia; no se declara automáticamente un champion.
+
+Se rechazan resultados de test, scores inválidos, gaps inconsistentes y
+metadatos de snapshot/hash/CV diferentes. El contrato de columnas para los
+productores está en [model_comparison.md](model_comparison.md). Las
+instrucciones de ejecución de la baseline están en [logreg.md](logreg.md),
+para mantener esta entrega independiente de las ediciones del README general.
+
+## Tests de integridad de datos (#30): adaptación a las 23 variables
+
+Los tests de `tests/test_data.py` emplean CSV comprimidos sintéticos y la
+carga real `load_train_test()`, sin leer el snapshot ni evaluar su test
+reservado. Se completa la tabla ficticia con barrio, distrito y tipo de
+propiedad para cubrir todas las entradas actuales. Ambos conjuntos deben
+coincidir exactamente con `MODEL_FEATURES`, incluido su orden, y conservar
+los mismos tipos. Se mantienen comprobaciones independientes que prohíben
+precio, identificadores, datos personales y campos derivados de ingresos:
+usar la lista compartida no elimina esas protecciones.
+
+Los nulos de `minimum_nights` deben conservarse en las filas correspondientes,
+sin rellenado previo a la imputación del Pipeline. No se exige el indicador
+`minimum_nights_was_missing` ni las antiguas entradas `amenities_count` o
+`has_clothes_dryer`, que ya no pertenecen al modelo acordado. Se actualizan
+expectativas de los tests, no las reglas de preparación ni el conjunto de
+variables. La guía de ejecución está en el README y la verificación en
+`docs/pruebas_manuales.md`, sección de la issue 30.
