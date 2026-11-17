@@ -1,0 +1,10 @@
+# Lista de permitidos: solo entra en la imagen lo que necesita la app.
+# Quedan fuera los datos (raw/processed/feedback), .venv, notebooks y docs.
+*
+!requirements-app.txt
+!.streamlit/
+!src/
+!app/
+!models/app_model.joblib
+**/__pycache__
+**/*.pyc
