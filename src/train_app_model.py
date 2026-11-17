@@ -66,6 +66,13 @@ def main() -> None:
         # Asked in the form, not derived from property_type: the same type can
         # be rented whole or by rooms (e.g. "Room in hotel").
         "room_types": list(X_train["room_type"].value_counts().index),
+        # Room types observed with each property type in train: the app rejects
+        # the others (e.g. "Entire rental unit" rented as a shared room).
+        "room_types_by_property": {
+            p: list(group.value_counts().index)
+            for p, group in X_train.groupby("property_type")["room_type"]
+            if p in set(property_types)
+        },
         "neighbourhoods": sorted(X_train["neighbourhood_cleansed"].unique()),
         "hood_to_district": by_hood["neighbourhood_group_cleansed"]
         .agg(lambda s: s.mode()[0])

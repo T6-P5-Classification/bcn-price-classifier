@@ -7,12 +7,17 @@ rejected with a clear message instead of being silently corrected.
 
 from __future__ import annotations
 
-import math
-
 import pandas as pd
 
 ENTIRE = "Entire home/apt"
 SHARED_ROOM = "Shared room"
+
+ROOM_TYPES_ES = {
+    "Entire home/apt": "Alojamiento entero",
+    "Private room": "Habitación privada",
+    "Hotel room": "Habitación de hotel",
+    "Shared room": "Habitación compartida",
+}
 
 # Bathroom options in the form -> (is_shared_bathroom, is_private_bathroom),
 # the same flags that src/cleaning.py derives from Airbnb's bathrooms_text:
@@ -49,8 +54,25 @@ def bathroom_flags(room_type: str, bathroom: str) -> tuple[int, int]:
     return BATHROOM_FLAGS[bathroom]
 
 
+def check_room_type(artifact: dict, property_type: str, room_type: str) -> None:
+    """Reject a room type never seen with this property type in train.
+
+    Unambiguous types allow one option ("Entire rental unit" is always rented
+    whole); ambiguous ones keep all their observed options ("Room in hotel":
+    entire, hotel room or private room), none imposed by frequency.
+    """
+    allowed = artifact["room_types_by_property"][property_type]
+    if room_type not in allowed:
+        options = " o ".join(f"«{ROOM_TYPES_ES.get(r, r)}»" for r in allowed)
+        raise ValueError(
+            f"«{ROOM_TYPES_ES.get(room_type, room_type)}» no encaja con este tipo de "
+            f"alojamiento: en los datos de Barcelona se alquila como {options}."
+        )
+
+
 def form_to_values(artifact: dict, form: dict) -> dict:
     """Map the answers of the form to the 23 model variables."""
+    check_room_type(artifact, form["property_type"], form["room_type"])
     coords = artifact["hood_coords"][form["hood"]]
     is_shared, is_private = bathroom_flags(form["room_type"], form["bathroom"])
     return {
@@ -80,19 +102,17 @@ def build_row(artifact: dict, values: dict) -> pd.DataFrame:
     missing = set(artifact["columns"]) - set(values)
     if missing:
         raise ValueError(f"Form is missing model variables: {sorted(missing)}")
-    empty = [
-        column for column in artifact["columns"]
-        if values[column] is None
-        or (isinstance(values[column], float) and math.isnan(values[column]))
-    ]
-    if empty:
-        raise ValueError(f"Form left model variables empty: {empty}")
     row = {column: values[column] for column in artifact["columns"]}
     df = pd.DataFrame([row], columns=artifact["columns"])
     numeric = artifact["numeric_columns"]
     df[numeric] = df[numeric].astype(float)
     other = [c for c in df.columns if c not in numeric]
     df[other] = df[other].astype(object)
+    # Checked after the conversion, so any kind of missing value is caught
+    # (None, float NaN, numpy NaN of any precision, pandas NA).
+    empty = df.columns[df.isna().iloc[0]].tolist()
+    if empty:
+        raise ValueError(f"Form left model variables empty: {empty}")
     return df
 
 

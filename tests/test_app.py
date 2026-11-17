@@ -19,7 +19,7 @@ from streamlit.testing.v1 import AppTest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "app"))
 
-from app_logic import bathroom_flags, build_row, form_to_values, predict  # noqa: E402
+from app_logic import bathroom_flags, build_row, check_room_type, form_to_values, predict  # noqa: E402
 from src.cleaning import MODEL_FEATURES  # noqa: E402
 from src.preprocessing import TARGET_LABELS, build_preprocessor  # noqa: E402
 from src.train_app_model import class_labels  # noqa: E402
@@ -70,6 +70,10 @@ def make_artifact(numeric_labels=False):
         "numeric_columns": list(X.select_dtypes("number").columns),
         "property_types": ["Entire rental unit", "Room in hotel"],
         "room_types": ROOMS,
+        "room_types_by_property": {
+            "Entire rental unit": ["Entire home/apt"],
+            "Room in hotel": ["Private room", "Hotel room", "Entire home/apt"],
+        },
         "neighbourhoods": sorted(HOODS),
         "hood_to_district": HOODS,
         "hood_coords": by_hood[["latitude", "longitude"]].median().to_dict("index"),
@@ -141,6 +145,15 @@ def test_combinations_without_training_examples_are_rejected_not_corrected(room_
         bathroom_flags(room_type, bathroom)
 
 
+def test_room_type_must_match_the_property_type():
+    artifact = make_artifact()
+    with pytest.raises(ValueError, match="no encaja"):
+        form_to_values(artifact, form(room_type="Shared room", bathroom="shared"))
+    # Ambiguous types keep every option observed in train, none imposed.
+    for room in ["Private room", "Hotel room", "Entire home/apt"]:
+        check_room_type(artifact, "Room in hotel", room)
+
+
 def test_build_row_rejects_missing_or_empty_variables():
     artifact = make_artifact()
     values = form_to_values(artifact, form())
@@ -148,6 +161,10 @@ def test_build_row_rejects_missing_or_empty_variables():
         build_row(artifact, {k: v for k, v in values.items() if k != "beds"})
     with pytest.raises(ValueError, match="empty"):
         build_row(artifact, {**values, "beds": float("nan")})
+    with pytest.raises(ValueError, match="empty"):
+        build_row(artifact, {**values, "beds": np.float32("nan")})
+    with pytest.raises(ValueError, match="empty"):
+        build_row(artifact, {**values, "room_type": None})
     row = build_row(artifact, values)
     assert row.columns.tolist() == list(MODEL_FEATURES) and row.notna().all(axis=None)
 
@@ -178,10 +195,23 @@ def test_app_loads_and_predicts(run_app, numeric_labels):
     assert "Modelo provisional para demostración" in at.warning[0].value
 
 
+def test_app_rejects_entire_apartment_rented_as_shared_room(run_app):
+    """Case reported in review: no prediction for contradictory answers."""
+    at = run_app()
+    next(s for s in at.selectbox if s.label == "Tipo de alojamiento").set_value("Entire rental unit")
+    next(s for s in at.selectbox if s.label == "Qué se alquila").set_value("Shared room")
+    at.radio[0].set_value("shared")
+    at.button[0].click().run()
+    assert not at.exception
+    assert "no encaja" in at.error[0].value
+    assert not any("Probabilidad estimada" in m.value for m in at.markdown)
+
+
 def test_app_explains_an_inconsistent_room_and_bathroom(run_app):
     at = run_app()
-    room =next(s for s in at.selectbox if s.label == "Qué se alquila")
-    room.set_value("Private room")  # bathroom left as "own" -> must be asked
+    next(s for s in at.selectbox if s.label == "Tipo de alojamiento").set_value("Room in hotel")
+    next(s for s in at.selectbox if s.label == "Qué se alquila").set_value("Private room")
+    # bathroom left as "own" -> the user must say private or shared
     at.button[0].click().run()
     assert not at.exception
     assert "privado o compartido" in at.error[0].value

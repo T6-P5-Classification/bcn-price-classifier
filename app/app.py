@@ -10,7 +10,7 @@ import joblib
 import pandas as pd
 import streamlit as st
 
-from app_logic import BATHROOM_OPTIONS, build_row, form_to_values, predict
+from app_logic import BATHROOM_OPTIONS, ROOM_TYPES_ES, build_row, form_to_values, predict
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -52,13 +52,6 @@ PROPERTY_TYPES_ES = {
     "Entire home": "Casa entera",
     "Private room in condo": "Habitación privada en un piso",
     "Shared room in hotel": "Habitación compartida en un hotel",
-}
-
-ROOM_TYPES_ES = {
-    "Entire home/apt": "Alojamiento entero",
-    "Private room": "Habitación privada",
-    "Hotel room": "Habitación de hotel",
-    "Shared room": "Habitación compartida",
 }
 
 CLASS_STYLE = {

@@ -643,7 +643,11 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   (`property_type`) y lo que se alquila (`room_type`) se preguntan por
   separado: en train el mismo tipo puede alquilarse entero o por
   habitaciones (p. ej. «Room in hotel»: 372 habitaciones privadas, 15 de
-  hotel y 7 enteros).
+  hotel y 7 enteros). Las combinaciones que no aparecen en train se
+  rechazan con un mensaje (p. ej. «Entire rental unit» como habitación
+  compartida): el artefacto guarda `room_types_by_property` y los tipos
+  ambiguos conservan todas sus modalidades observadas, sin imponer la más
+  frecuente.
 - **Baño:** se pregunta con tres opciones que reproducen los indicadores de
   `src/cleaning.py` sobre `bathrooms_text`: propio del alojamiento entero
   (0, 0), privado (0, 1) o compartido (1, 0). Las combinaciones sin ejemplos
@@ -651,7 +655,8 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   «propio», habitación compartida con baño privado) se rechazan con un
   mensaje; no se corrigen en silencio.
 - **Sin imputación desde el formulario:** `build_row()` rechaza variables
-  ausentes o vacías (NaN), para que el Pipeline no las rellene sin avisar.
+  ausentes o vacías (comprobado después de convertir tipos, así detecta
+  cualquier NaN), para que el Pipeline no las rellene sin avisar.
 - **Barrio:** nombre oficial y distrito; latitud y longitud son la mediana
   de train del barrio (el formulario no pide la dirección exacta).
 - **Etiquetas del modelo:** el artefacto guarda `class_labels`, que traduce
