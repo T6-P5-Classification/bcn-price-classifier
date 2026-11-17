@@ -116,6 +116,19 @@ Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
 train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
 La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
+### App Streamlit (#15)
+
+Desde la raíz, con el entorno activo y el snapshot en `data/raw/`:
+
+```bash
+python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git)
+streamlit run app/app.py
+```
+
+El modelo de la app es **provisional** (regresión logística) hasta que se
+integre el champion (#22/#23); la app lo indica en pantalla. Los tests de la
+app (`tests/test_app.py`) usan un modelo sintético y no necesitan el snapshot.
+
 ## 🗂️ Estructura
 
 ```
