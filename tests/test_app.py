@@ -397,3 +397,37 @@ def test_prediction_is_shown_even_if_it_cannot_be_stored(run_app, monkeypatch):
     assert not at.exception
     assert any("Probabilidad estimada" in m.value for m in at.markdown)
     assert not any(b.label == "Enviar" for b in at.button)  # no feedback without a stored prediction
+
+
+def test_metrics_panel_uses_feedback_saved_by_the_full_app(run_app):
+    at = run_app()
+    assert not at.exception
+    assert not at.metric  # opt-in view does not load or show metrics by default
+    at.button[0].click().run()
+    next(n for n in at.number_input if n.label.startswith("Precio real")).set_value(200.)
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    at.checkbox(key="show_feedback_metrics").check().run()
+    assert not at.exception
+    values = {item.label: item.value for item in at.metric}
+    assert values["Predicciones guardadas"] == "1"
+    assert values["Respuestas"] == "1"
+    assert values["Cobertura del feedback"] == "100,0 %"
+    assert int(at.dataframe[-1].value.to_numpy().sum()) == 1
+
+
+def test_app_starts_outside_repository_with_clean_pythonpath(tmp_path):
+    """Console launch gives the app directory, not pytest's repository path."""
+    import os
+    import subprocess
+    artifact_path = tmp_path / "synthetic.joblib"
+    joblib.dump(make_artifact(), artifact_path)
+    env = dict(os.environ, APP_MODEL_PATH=str(artifact_path),
+               FEEDBACK_DIR=str(tmp_path / "feedback"), PYTHONPATH="")
+    code = (
+        "import runpy,sys; "
+        f"sys.path.insert(0,{str(ROOT / 'app')!r}); "
+        f"runpy.run_path({APP!r},run_name='__main__')"
+    )
+    result = subprocess.run([sys.executable, "-c", code], cwd=tmp_path,
+                            env=env, text=True, capture_output=True, timeout=30)
+    assert result.returncode == 0, result.stderr[-3000:]

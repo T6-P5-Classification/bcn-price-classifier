@@ -11,6 +11,7 @@ import joblib
 import pandas as pd
 import streamlit as st
 
+
 from app_logic import (
     BATHROOM_OPTIONS,
     ROOM_TYPES_ES,
@@ -22,7 +23,8 @@ from app_logic import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))  # for src.feedback_store
+sys.path.insert(0, str(ROOT))  # shared application modules
+from feedback_panel import render_feedback_panel  # noqa: E402
 from src.feedback_store import StorageError, save_feedback, save_prediction  # noqa: E402
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
@@ -275,6 +277,10 @@ with result_col:
                 except StorageError:
                     # Keep the result on screen and do not confirm a failed save.
                     st.warning("No hemos podido guardar tu respuesta. Inténtalo de nuevo más tarde.")
+
+with st.expander("Seguimiento del feedback"):
+    if st.checkbox("Mostrar métricas del feedback", key="show_feedback_metrics"):
+        render_feedback_panel()
 
 st.divider()
 st.caption(

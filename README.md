@@ -160,3 +160,10 @@ models/      Modelos entrenados
 tests/       Tests con pytest
 docs/        Decisiones e informe técnico
 ```
+
+### Métricas del feedback (#25)
+
+En la app, abrir **Seguimiento del feedback** y activar **Mostrar métricas del
+feedback**. El panel muestra agregados por modelo, versión, variante y umbrales,
+con actualización cada diez segundos y manual. Sin respuestas no presenta
+scores. [Uso, denominadores, pruebas y límites](docs/feedback_metrics.md).
