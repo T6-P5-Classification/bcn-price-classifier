@@ -307,6 +307,38 @@ Comparar candidatos por validación; considerar también estabilidad entre
 folds, diferencia train/validación, coste de entrenamiento e inferencia.
 Usar `DummyClassifier` como referencia con el mismo protocolo (#18).
 
+### Presupuesto acordado para Random Forest (#19)
+
+Se fijan **40 pruebas de Optuna para Random Forest**, con las cinco particiones
+comunes y solo entrenamiento: 200 ajustes de búsqueda. El espacio de búsqueda
+es `n_estimators` 100–500 (paso 50), `max_depth` 3–20, `min_samples_split`
+2–20, `min_samples_leaf` 1–10 y `max_features` 0,3–1,0. Parámetros fijos:
+`random_state=42`, `n_jobs=1`, `bootstrap=True`, `verbose=0`. La semilla TPE
+es 42; no hay poda, parada temprana ni ampliación automática. Referencias y
+diagnósticos fuera de fold son ajustes adicionales, no nuevas pruebas de
+Optuna.
+
+Se maximiza F1 macro medio de validación y se selecciona la mejor prueba
+completa que cumpla `gap < 0,05`. La mejor prueba sin restricción puede no
+ser elegible. Si ninguna cumple, se informa que el requisito está pendiente,
+sin evaluar test para corregirlo ni presentar otro candidato como válido.
+
+Este acuerdo es específico de la entrega de Random Forest; no declara uniformes
+los presupuestos anteriores del equipo ni autoriza repetir otras búsquedas.
+La salida para la tabla común es un CSV independiente: esta issue no cambia
+el notebook compartido de selección del champion ni utiliza test.
+
+Resultado local comprobado de #19: 40 pruebas completas, 8 elegibles;
+seleccionada la de índice 8. F1 macro medio de ajuste 0,80548 y validación
+0,75935 (desviación poblacional 0,00558); gap medio 0,04612. Se cumple el
+criterio para la **media**, no para cada fold ni para cualquier población.
+Frente al Random Forest por defecto (validación 0,77789; gap 0,21126), se
+acepta aproximadamente 0,0185 puntos menos de F1 para reducir el gap de unos
+0,21 a menos de 0,05. Solo 8 de las 40 pruebas cumplen `gap < 0,05`: es un
+buen ejemplo de por qué se usa el límite de gap. Accuracy OOF 0,75882 y tasa
+extrema 0,00971; test sin evaluar. Parámetros, tiempos, versiones, métricas
+por clase y límites quedan en el notebook y los resultados agregados.
+
 ### Métricas e interpretación
 
 - **Principal: F1 macro**, media del F1 de las tres clases con el mismo peso.
@@ -396,3 +428,52 @@ anunciados de alojamientos comparables por barrio, tipo y segmento, indicando
 fecha y tamaño de muestra. No es un segundo target ni una tasación. Queda
 fuera del alcance de #14 y pendiente de acuerdo del equipo; tampoco se
 incorpora un modelo de regresión de precios en esta entrega.
+
+## Modelo Random Forest (#19)
+
+El notebook reutiliza el split y las 23 variables compartidas. Compara
+Dummy most_frequent y Random Forest, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna
+maximiza la media de F1 macro de validación con TPE y semilla 42, 40 trials
+locales. Espacio: `n_estimators` 100–500 (paso 50), `max_depth` 3–20,
+`min_samples_split` 2–20, `min_samples_leaf` 1–10 y `max_features` 0,3–1,0.
+Parámetros fijos: `random_state=42`, `n_jobs=1`, `bootstrap=True`,
+`verbose=0`. Se selecciona la mejor prueba completa con `gap < 0,05`; si
+ninguna cumple, se informa que el requisito queda pendiente.
+
+El Random Forest por defecto memoriza: F1 macro medio de ajuste 0,98915 y
+validación 0,77789, con gap 0,21126. La mejor prueba sin restricción alcanza
+0,77831 de validación, pero con gap 0,17641; memorizar no mejora la
+validación de forma útil. El modelo elegido (índice 8) obtiene F1 macro medio
+de ajuste 0,80548 y validación 0,75935 (desviación poblacional 0,00558),
+con gap 0,04612, es decir, unos 0,0185 puntos menos de F1 que el modelo por
+defecto a cambio de reducir el gap de 0,21 a menos de 0,05. Solo 8 de las
+40 pruebas cumplen `gap < 0,05`.
+
+Tras elegir hiperparámetros, `cross_val_predict` produce las predicciones OOF
+de cada modelo sobre train con los mismos folds y el Pipeline completo.
+Accuracy, F1 macro, informes por clase, matrices y errores extremos usan solo
+esas predicciones. El F1 agregado OOF no sustituye la media de F1 por fold
+como criterio de selección. Las etiquetas se presentan en el orden común.
+Accuracy OOF 0,75882, F1 macro OOF 0,75938 y tasa de errores extremos
+0,00971.
+
+El notebook no evalúa ni inspecciona los objetos de test: la evaluación del
+test reservado corresponde solo al champion elegido en #22. No se serializa
+un modelo ni se declara un champion. La tabla común contiene únicamente CV
+y diagnósticos `train_oof`, con nombres de columnas `oof_*`, no `test_*`.
+`rf_trials.csv` registra la búsqueda. No se guardan filas ni predicciones
+individuales.
+
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. El Random Forest por
+defecto muestra un gap de 0,21; el límite de 0,05 es un requisito acordado,
+no una garantía de buen servicio ni de ausencia universal de sobreajuste.
+No se ha cambiado la configuración de búsqueda en respuesta a resultados de
+test. La salida para la tabla común es un CSV independiente; esta issue no
+cambia el notebook compartido de selección del champion ni utiliza test.
+
+`tests/test_rf_model.py` ejecuta carga, CV, Optuna y diagnóstico con train
+sintético y objetos de test que fallan si se inspeccionan. Comprueba que los
+informes y las matrices cubren train y que no se exportan columnas de
+resultados `test_*`. La ejecución completa verifica los artefactos reales.
