@@ -473,6 +473,20 @@ módulos todavía no integrados. La atribución de los datos no se presenta como
 una licencia del código. Enlaces locales, nombres de las 23 variables y estado
 de los archivos se verificaron contra este árbol de trabajo.
 
+## Contrato funcional de inferencia (#31)
+
+`tests/test_model.py` prueba un Pipeline real con el preprocesador compartido,
+23 entradas sintéticas y un estimador LogisticRegression de referencia.
+Comprueba etiquetas, tamaño, probabilidades y su orden de clases, nulos,
+categorías desconocidas, orden de columnas, columnas obligatorias y persistencia
+joblib. La prueba de nulos confirma que inferencia no reaprende las medianas.
+No cambia las funciones compartidas ni las decisiones de otros modelos.
+
+Los tests sintéticos no certifican calidad predictiva ni sustituyen la prueba
+del artefacto champion una vez integrado. Las seis pruebas comprueban este contrato con datos sintéticos. La suite
+completa debe ejecutarse de nuevo al actualizar desde `dev`. Comandos y límites en
+[docs/test_model.md](test_model.md).
+
 ## Modelo Random Forest (#19)
 
 El notebook reutiliza el split y las 23 variables compartidas. Compara
@@ -532,6 +546,28 @@ cambia el notebook compartido de selección del champion ni utiliza test.
 sintético y objetos de test que fallan si se inspeccionan. Comprueba que los
 informes y las matrices cubren train y que no se exportan columnas de
 resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+## Importancia de variables (#16)
+
+La importancia se calcula solo con train y validación cruzada, nunca con test.
+Se usa permutación sobre cada fold de validación con el Pipeline completo y
+F1 macro como métrica, agregando la media y desviación entre folds. El
+resultado es una tabla por modelo con una fila por variable de
+`MODEL_FEATURES`, más metadatos de snapshot, commit, hash y CV.
+
+El método es model-agnostic y permite comparar importancias entre candidatos,
+pero no establece causalidad: una variable puede ser sustituto de otra o
+depender del preprocesamiento. La permutación es costosa y su estabilidad
+depende de `n_repeats`; importancias negativas o cercanas a cero indican
+variables con aportación nula o inestable en ese modelo.
+
+La importancia del champion ya se ha generado para el XGBoost elegido en #22:
+`docs/results/champion_feature_importance.csv` (con una línea inicial de
+comentario que identifica el modelo). Se reutiliza el mismo protocolo y no se
+incluyen filas del
+dataset ni predicciones individuales; la tabla solo contiene métricas
+agregadas y metadatos. `src/feature_importance.py` implementa el cálculo y
+`tests/test_feature_importance.py` cubre su esquema y reproducibilidad.
 `logreg_details.json` registra informes, matrices, folds, umbrales, versiones
 y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
 predicciones individuales.
@@ -647,6 +683,63 @@ Son asociaciones descriptivas de este snapshot, no causas, rankings estables
 de zonas pequeñas ni calidad predictiva demostrada. Reproducción, resultados
 y límites: [EDA por distritos y room_type](eda_distritos_room_type.md).
 
+## Tabla comparativa y champion (#22)
+
+`notebooks/08_comparison.ipynb` reúne los `*_comparison.csv` de los cuatro
+modelos (validación cruzada en train, mismos folds, snapshot y hash) y añade
+una tabla legible para la presentación, con una sola fila Dummy.
+
+**Regla de elección (acordada antes de ver los resultados):** mejor F1 macro
+medio de validación entre los modelos con gap < 0,05, sin contar Dummy. El
+notebook la aplica en código.
+
+| Modelo | F1 val (media ± std) | Gap | Errores extremos (OOF) |
+|---|---|---|---|
+| **XGBoost** | **0,7631 ± 0,0032** | 0,048 | 1,0 % |
+| LightGBM | 0,7630 ± 0,0018 | 0,0495 | 1,0 % |
+| Random Forest | 0,7594 ± 0,0056 | 0,046 | 1,0 % |
+| Regresión logística | 0,7291 ± 0,0061 | 0,010 | 1,2 % |
+| Dummy | 0,1668 | 0,000 | 33,3 % |
+
+**Champion: XGBoost**, confirmado por el equipo el 17/11/2026. LightGBM queda en empate práctico: la diferencia
+(0,0001) es mucho menor que la desviación entre folds, y en los mismos cinco
+folds cada uno gana en dos (uno igualado). Ambos serían defendibles; se
+mantiene la regla fijada de antemano en lugar de elegir con un criterio
+nuevo tras ver los resultados.
+
+**Evaluación final:** `notebooks/08b_champion_test.ipynb` ajusta el Pipeline
+de XGBoost (prueba 34 de Optuna, `src/xgboost_model.py`) con todo train y lo
+evalúa **una sola vez** en test. Guarda `docs/results/champion_test.json` y se
+detiene si ese archivo ya existe, tanto al principio como en la propia celda
+de evaluación (antes de predecir); el archivo se crea en modo exclusivo y no
+se sobrescribe. Antes de ajustar comprueba que los parámetros efectivos del
+modelo son exactamente los de la fila ganadora del CSV de comparación. Después no se cambian modelo, variables ni
+hiperparámetros. Se declara la exposición histórica del test por la baseline
+de #18, que no guió esta elección. Antes de evaluar se comprobó, solo con
+train, que el Pipeline reproduce la CV registrada (0,763119).
+### Resultado de la evaluación única en test (#22)
+
+Ejecutada una vez el 17/11/2026 con XGBoost ajustado en todo train
+(`notebooks/08b_champion_test.ipynb`, registro en
+`docs/results/champion_test.json`, código de `dev` en 960e9c6).
+
+| | Validación cruzada (train) | Test |
+|---|---|---|
+| F1 macro | 0,7631 | 0,7651 |
+| Accuracy | 0,7630 | 0,7645 |
+| Errores extremos | 1,01 % | 1,23 % (31 de 2.522) |
+
+Por clase en test: Económico F1 0,869, Medio 0,669, Premium 0,758. La
+confusión más frecuente es Medio ↔ Premium (180 anuncios reales Medio
+predichos Premium y 195 reales Premium predichos Medio).
+
+En esta partición de test, el F1 macro observado (0,7651) es cercano al F1
+macro medio de validación (0,7631). Es un resultado compatible con el
+rendimiento estimado durante la selección, pero no demuestra ausencia de
+sobreajuste ni rendimiento futuro. Se mantienen las limitaciones del reparto
+aleatorio, el único snapshot y la exposición histórica del test. Tras ver el
+resultado no se cambia el modelo, las variables ni los hiperparámetros.
+
 ## App Streamlit (#15)
 
 La app (`app/app.py`) pide al anfitrión las 23 variables de `MODEL_FEATURES`
@@ -685,8 +778,8 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   las clases del modelo al nombre mostrado. Sirve tanto para modelos con
   etiquetas de texto (regresión logística) como numéricas 0/1/2 (XGBoost con
   `LABEL_TO_INT`), así que cambiar al champion no rompe la app.
-- **Aviso en pantalla:** el modelo actual es provisional (regresión
-  logística). El resultado estima un segmento de precio anunciado; no
+- **Aviso en pantalla:** mientras el modelo era provisional (regresión
+  logística) se indicaba así; desde #23 la app usa el champion (ver abajo). El resultado estima un segmento de precio anunciado; no
   recomienda un precio ni garantiza la clasificación. Se muestra la
   «probabilidad estimada por el modelo», no una «confianza».
 - **Tests (`tests/test_app.py`):** modelo sintético, sin snapshot. Comprueban
@@ -741,7 +834,118 @@ el test queda reservado al champion. Las instrucciones enlazan las guías de
 LogReg, XGBoost y comparación, y advierten antes de sobrescribir el snapshot
 con el comando de descarga. No se modifica el protocolo ni se ejecuta test.
 
-La guía conserva también los comandos de la app básica integrada en `dev` y
-distingue su regresión logística provisional de la integración del champion
-y del despliegue pendientes. No se genera ni se publica un artefacto al
+La guía conserva los comandos de la app integrada en `dev` y distingue
+el champion y feedback CSV actuales del despliegue y MongoDB pendientes.
+La evaluación final se lee del registro existente, sin volver a ejecutarla. No se genera ni se publica un artefacto al
 actualizar esta documentación.
+
+## Champion en la app (#23)
+
+`src/train_app_model.py` entrena ahora el **champion XGBoost** de #22 en lugar
+de la regresión logística provisional:
+
+- Pipeline de `src/xgboost_model.py` con los hiperparámetros de la prueba
+  seleccionada (`xgboost_details.json`). Antes de ajustar se comprueba que los
+  parámetros efectivos coinciden con la fila ganadora de
+  `xgboost_comparison.csv`; si no, se detiene.
+- Ajuste con **todo train** y la codificación acordada (Económico=0, Medio=1,
+  Premium=2); `class_labels` traduce las clases a sus nombres en la app. No se
+  usa test para entrenar ni para elegir nada.
+- **Mismos datos que en la selección:** antes de ajustar se comprueba que la
+  firma del archivo de datos (`raw_sha256`), el tamaño de train y los umbrales
+  coinciden con los registrados para el champion; si no, se detiene.
+- El aviso bajo el resultado indica el modelo y, si existe
+  `champion_test.json`, su resultado en la evaluación única de test
+  (accuracy y F1 macro). Esas métricas solo se incorporan si el registro
+  corresponde a este modelo: mismo champion, prueba de Optuna, parámetros,
+  firma de datos, tamaño de train y umbrales. Si no coincide, el
+  entrenamiento se detiene para no presentar resultados de otro modelo como
+  si validaran el actual; si no existe, la app funciona sin mostrarlas. La
+  procedencia se guarda en el artefacto (`provenance`). Se mantienen los límites: estima un segmento de
+  precio anunciado, no recomienda un precio ni garantiza la clasificación.
+- Tests: parámetros del champion, parada si difieren de la comparación,
+  parada si cambian datos, tamaño de train o umbrales, rechazo de métricas de
+  test de otro modelo, parámetros, datos o umbrales, lectura opcional del
+  resultado de test, aviso de champion frente a
+  provisional y AppTest con un modelo de etiquetas numéricas.
+
+**Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
+generándose localmente y no se sube a Git; su uso en Docker/Render se decide
+en #29/#33.
+
+## Predicciones y feedback (#23)
+
+La app guarda **cada predicción** y, opcionalmente, el **precio real por
+noche** que indica el anfitrión. El contrato completo está en
+`docs/feedback.md`; el acceso se hace solo con `src/feedback_store.py`.
+
+- **Por qué cada predicción y no solo el feedback:** #36 (drift) y #25
+  (métricas) necesitan todas las entradas y salidas, y #27 pide guardar
+  «predicciones y feedback».
+- **Por qué el precio y no un «¿acertó?»:** con el precio se obtiene la clase
+  real con la misma regla y umbrales que el target, y #24 puede recalcular
+  umbrales con datos nuevos.
+- **Dos tablas** (`predictions`, `feedback`) unidas por `prediction_id`, una
+  respuesta como máximo por predicción. Cada predicción guarda sus umbrales,
+  `model_name`, `model_version` y `variant` (para #35).
+- **Almacenamiento:** CSV en `data/feedback/` (fuera de Git), carpeta
+  configurable con `FEEDBACK_DIR`. #27 sustituye solo `_append`/`_read` por
+  MongoDB; las funciones públicas y los campos no cambian.
+- **Una respuesta por predicción, también con envíos simultáneos:** la
+  comprobación y la escritura se hacen bajo un bloqueo de archivo portable
+  (macOS, Linux, Windows); un bloqueo abandonado por un proceso caído se
+  ignora tras 60 s. Las probabilidades se validan (finitas, entre 0 y 1,
+  suman 1) antes de escribir.
+- **Errores de almacenamiento:** se convierten en `StorageError`, común a CSV
+  y a la futura implementación MongoDB. La app lo captura: si falla guardar
+  la predicción, la muestra igualmente sin formulario de respuesta; si falla
+  guardar la respuesta, mantiene el resultado y muestra un aviso, sin
+  confirmar el guardado. El resultado se conserva en pantalla al enviar la
+  respuesta (`st.session_state`).
+- **Aviso para el anfitrión:** bajo el resultado, una frase sencilla
+  («Estimación orientativa… No es una recomendación de precio y puede no
+  acertar»). Los detalles técnicos (modelo, resultado en test, F1 macro y
+  límites) quedan en un desplegable «ℹ️ Sobre el modelo», para no mostrar
+  jerga a quien usa la app sin ocultar la información.
+- **Privacidad:** sin datos personales ni texto libre.
+- **Tests:** `tests/test_feedback_store.py` (contrato de columnas, clase real
+  en los límites, rechazo de precios y probabilidades no válidos, una
+  respuesta por predicción también con cuatro envíos simultáneos, errores de
+  escritura, bloqueo abandonado, unión) y AppTest del flujo predicción →
+  respuesta, de los fallos de almacenamiento y del aviso sencillo.
+
+**Límites:** respuestas voluntarias y no verificadas; en Render el disco no
+es permanente, por lo que para conservar datos hace falta MongoDB.
+
+## Dockerfile de la app (#29)
+
+- **Base `python:3.12-slim`** (versión del proyecto) y `libgomp1`, que XGBoost
+  necesita para OpenMP.
+- **`requirements-app.txt`:** solo las dependencias de la app (pandas, numpy,
+  scikit-learn, XGBoost, joblib, Streamlit) con las mismas versiones que
+  `requirements.txt`. Se usa `xgboost-cpu`, la misma versión sin librerías de
+  GPU: la imagen baja de 1,66 GB a 1,12 GB. Un test comprueba que las
+  versiones coinciden con `requirements.txt`.
+- **`.dockerignore` como lista de permitidos:** entran `app/`, `src/`,
+  `.streamlit/`, el modelo y `requirements-app.txt`; quedan fuera datos
+  (raw, processed, feedback), `.venv`, notebooks y docs.
+  Después de las reglas de permitidos se excluyen expresamente secretos
+  (`.env`, `.env.*`, `secrets.toml`, `*.pem`, `*.key`) aunque estén en
+  carpetas permitidas; comprobado con archivos ficticios.
+- **Modelo:** se copia `models/app_model.joblib`, que se genera en local con
+  `python -m src.train_app_model` (no está en Git). Si falta, `docker build`
+  falla al copiarlo.
+- **Ejecución:** Streamlit se lanza con `exec`, así recibe la señal de
+  parada y `docker stop` termina limpio (código 0, no 137). Usuario sin
+  privilegios, puerto configurable con `PORT`
+  (8501 por defecto; Render asigna el suyo), `HEALTHCHECK` en
+  `/_stcore/health` y carpeta `data/` escribible para la app.
+- **Comprobado en local:** la imagen se construye, el contenedor queda
+  `healthy`, carga el champion, predice igual que en local (apartamento
+  estándar → Medio, habitación con baño compartido → Económico, combinación
+  contradictoria rechazada) y responde con `PORT=10000`.
+
+**Pendiente para Render (#33):** Render construye la imagen desde GitHub,
+donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
+(p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
+arrancar).

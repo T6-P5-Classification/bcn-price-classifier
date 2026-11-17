@@ -13,8 +13,8 @@ ingresos, ocupación futura ni el precio finalmente pagado.
 La rama de integración es `dev`. Están disponibles la limpieza, el feature
 engineering, la selección de 23 entradas, el split y el preprocesamiento
 compartidos, los notebooks de los cuatro modelos y la app básica de Streamlit
-con modelo provisional. La integración del champion y el despliegue siguen
-pendientes; un archivo presente pero vacío no constituye una implementación.
+con el champion XGBoost y captura de feedback local. El despliegue sigue
+pendiente; un archivo presente pero vacío no constituye una implementación.
 
 Requisitos locales: Git, **Python 3.12**, acceso al dataset y espacio para un
 entorno virtual. En macOS, XGBoost y LightGBM necesitan OpenMP (`libomp`).
@@ -215,8 +215,9 @@ python -m pytest -q
 
 Los tests actuales de preparación usan datos sintéticos: no requieren descargar
 el snapshot. Comprueban comportamiento del código, no calidad predictiva real.
-Las pruebas con datos o modelos externos deben indicar sus requisitos y no
-presentar un skip como una validación superada.
+El control de procedencia del champion en `tests/test_champion_feature_importance.py`
+requiere el snapshot raw local. Las pruebas con datos o modelos externos deben
+indicar sus requisitos y no presentar un skip como una validación superada.
 
 Para verificaciones paso a paso, consultar
 [la guía de pruebas manuales](docs/pruebas_manuales.md).
@@ -285,8 +286,11 @@ actualización completa del README prevista en #41.
 
 ### Modelo XGBoost
 
-Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
-train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
+El notebook candidato usa 40 pruebas de Optuna y diagnósticos fuera de fold
+solo sobre train: [ejecución y resultados](docs/xgboost.md). La evaluación
+final posterior del champion ya está registrada en
+[champion_test.json](docs/results/champion_test.json); no se repite al
+ejecutar el candidato.
 La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
 ### App Streamlit (#15)
@@ -298,28 +302,51 @@ python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git
 streamlit run app/app.py
 ```
 
-El modelo de la app es **provisional** (regresión logística) hasta que se
-integre el champion (#22/#23); la app lo indica en pantalla. Los tests de la
-app (`tests/test_app.py`) usan un modelo sintético y no necesitan el snapshot.
+La app usa el **champion XGBoost** (#22): los hiperparámetros de la prueba
+de Optuna seleccionada, ajustado con todo train (no usa test). Si existe
+`docs/results/champion_test.json`, la app muestra también su resultado en
+test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
+necesitan el snapshot.
+
+Cada predicción y, si el usuario lo indica, su precio real por noche se
+guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
+reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
+
+### Docker (#29)
+
+El modelo no está en Git: se genera antes de construir la imagen.
+
+```bash
+python -m src.train_app_model
+docker build -t bcn-price-classifier .
+docker run -p 8501:8501 bcn-price-classifier   # http://localhost:8501
+```
+
+La imagen usa `requirements-app.txt` (solo lo que necesita la app, mismas
+versiones) y `.dockerignore` deja fuera datos, `.venv`, notebooks y docs. El
+puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
 
 
 ## Aplicación y entregables pendientes
 
-En `dev` está integrada la app básica de Streamlit descrita arriba. Utiliza
-un modelo provisional generado localmente; todavía no incorpora el champion
-ni un despliegue público verificado. La integración del champion, la persistencia
-del feedback, MongoDB, Docker, reentrenamiento y drift se entregan en sus propias
-issues. Sus contratos deben documentarse al integrarse; no son requisitos para
-reproducir el split.
+En `dev` está integrada la app con el champion XGBoost y captura de
+feedback en CSV locales ignorados por Git. El usuario declara un precio por
+noche y la clase real se calcula con los umbrales de su predicción. Las
+respuestas son voluntarias y no verificadas.
 
-La elección del champion corresponde a `notebooks/08_comparison.ipynb` cuando
-estén disponibles los resultados comparables de los modelos. No asumir que
-el primer modelo entrenado es el champion.
+La selección del champion usa CV sobre train. Su evaluación final ya está
+registrada y conserva la limitación de exposición histórica de test. No
+repetirla ni usar sus resultados para ajustar variables o hiperparámetros.
+
+MongoDB, monitorización, reentrenamiento, drift y despliegue se verifican en
+sus entregas. Existe un Dockerfile integrado con instrucciones en el README
+en el apartado correspondiente, pero este cambio documental no vuelve a ejecutar Docker
+ni acredita una URL pública.
 
 ## Estructura y colaboración
 
 ```text
-app/          Aplicación Streamlit con modelo provisional
+app/          Aplicación Streamlit con champion y feedback local
 data/raw/     Snapshot descargado localmente; ignorado por Git
 data/processed/  Datos derivados locales; ignorados por Git
 models/       Artefactos de modelos, cuando se integren

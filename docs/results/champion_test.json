@@ -1,0 +1,115 @@
+{
+  "issue": 22,
+  "champion": "XGBoost",
+  "selection_rule": "max mean validation macro F1 among models with gap < 0.05 (08_comparison.ipynb)",
+  "selected_trial": 34,
+  "params": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "random_state": 42,
+    "n_jobs": 1,
+    "verbosity": 0,
+    "n_estimators": 200,
+    "max_depth": 6,
+    "learning_rate": 0.13596326288098115,
+    "min_child_weight": 9.448211347985099,
+    "gamma": 0.39422572853428905,
+    "subsample": 0.6860871530746592,
+    "colsample_bytree": 0.6645760092625056,
+    "reg_alpha": 3.2870454921742165,
+    "reg_lambda": 21.189223459332542
+  },
+  "fit_on": "full train",
+  "evaluation_set": "held_out_test",
+  "evaluated_once": true,
+  "historical_test_exposure": "La baseline de regresión logística mostró antes resultados de esta partición; no guió la elección del champion.",
+  "n_train": 10088,
+  "n_test": 2522,
+  "thresholds": {
+    "lower": 122.0,
+    "upper": 249.72333333333327
+  },
+  "cv": {
+    "validation_f1_macro": 0.7631189831283225,
+    "validation_std": 0.0032410902479801055,
+    "oof_accuracy": 0.7629857256145915,
+    "oof_extreme_error_rate": 0.010111022997620936
+  },
+  "test": {
+    "accuracy": 0.7644726407613005,
+    "f1_macro": 0.7650562903745607,
+    "extreme_error_rate": 0.012291831879460745
+  },
+  "confusion_matrix": [
+    [
+      725,
+      96,
+      20
+    ],
+    [
+      92,
+      568,
+      180
+    ],
+    [
+      11,
+      195,
+      635
+    ]
+  ],
+  "matrix_rows": "real price class",
+  "matrix_columns": "predicted class",
+  "label_order": [
+    "Económico",
+    "Medio",
+    "Premium"
+  ],
+  "classification_report": {
+    "Económico": {
+      "precision": 0.8756038647342995,
+      "recall": 0.8620689655172413,
+      "f1-score": 0.8687837028160575,
+      "support": 841.0
+    },
+    "Medio": {
+      "precision": 0.6612339930151339,
+      "recall": 0.6761904761904762,
+      "f1-score": 0.6686286050618011,
+      "support": 840.0
+    },
+    "Premium": {
+      "precision": 0.7604790419161677,
+      "recall": 0.7550535077288941,
+      "f1-score": 0.7577565632458234,
+      "support": 841.0
+    },
+    "accuracy": 0.7644726407613005,
+    "macro avg": {
+      "precision": 0.7657722998885337,
+      "recall": 0.764437649812204,
+      "f1-score": 0.7650562903745607,
+      "support": 2522.0
+    },
+    "weighted avg": {
+      "precision": 0.765813750446374,
+      "recall": 0.7644726407613005,
+      "f1-score": 0.7650945249841216,
+      "support": 2522.0
+    }
+  },
+  "provenance": {
+    "date": "2026-11-17",
+    "snapshot": "2026-09-17",
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "code_commit": "960e9c66922467f3530f7bcd64435c792c4d0808",
+    "python": "3.12.10",
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scikit-learn": "1.9.1",
+      "xgboost": "3.4.1"
+    }
+  }
+}

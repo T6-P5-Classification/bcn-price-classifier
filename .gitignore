@@ -230,3 +230,6 @@ models/*.joblib
 
 # Local notebook runtime and kernel configuration
 .jupyter/
+
+# Predicciones y feedback de la app (#23): datos locales, no se suben
+data/feedback/
