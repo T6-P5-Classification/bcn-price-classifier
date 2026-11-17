@@ -1,0 +1,32 @@
+{
+  "champion": "XGBoost",
+  "selected_trial": 34,
+  "selected_params": {
+    "n_estimators": 200,
+    "max_depth": 6,
+    "learning_rate": 0.13596326288098115,
+    "min_child_weight": 9.448211347985099,
+    "gamma": 0.39422572853428905,
+    "subsample": 0.6860871530746592,
+    "colsample_bytree": 0.6645760092625056,
+    "reg_alpha": 3.2870454921742165,
+    "reg_lambda": 21.189223459332542
+  },
+  "train_rows": 10088,
+  "thresholds": {
+    "lower": 122.0,
+    "upper": 249.72333333333327
+  },
+  "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+  "code_commit": "66c7a4046fbfc7ed44ff041086687786d8f000c6",
+  "python": "3.14.7",
+  "versions": {
+    "pandas": "3.1.1",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "optuna": "5.0.0",
+    "threadpoolctl": "3.8.0"
+  }
+}
