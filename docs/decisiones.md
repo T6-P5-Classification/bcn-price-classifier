@@ -765,3 +765,26 @@ Medio. No se demuestra su causa, significación de diferencias pequeñas ni
 se elige champion. No se guardan predicciones individuales ni se sustituye
 la tabla de métricas original. RF sigue identificado como reconstrucción
 local no idéntica al origen; los otros tres reproducen sus métricas OOF.
+
+### Resultado de la evaluación única en test (#22)
+
+Ejecutada una vez el 17/11/2026 con XGBoost ajustado en todo train
+(`notebooks/08b_champion_test.ipynb`, registro en
+`docs/results/champion_test.json`, código de `dev` en 960e9c6).
+
+| | Validación cruzada (train) | Test |
+|---|---|---|
+| F1 macro | 0,7631 | 0,7651 |
+| Accuracy | 0,7630 | 0,7645 |
+| Errores extremos | 1,01 % | 1,23 % (31 de 2.522) |
+
+Por clase en test: Económico F1 0,869, Medio 0,669, Premium 0,758. La
+confusión más frecuente es Medio ↔ Premium (180 anuncios reales Medio
+predichos Premium y 195 reales Premium predichos Medio).
+
+En esta partición de test, el F1 macro observado (0,7651) es cercano al F1
+macro medio de validación (0,7631). Es un resultado compatible con el
+rendimiento estimado durante la selección, pero no demuestra ausencia de
+sobreajuste ni rendimiento futuro. Se mantienen las limitaciones del reparto
+aleatorio, el único snapshot y la exposición histórica del test. Tras ver el
+resultado no se cambia el modelo, las variables ni los hiperparámetros.
