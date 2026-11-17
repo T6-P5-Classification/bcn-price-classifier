@@ -822,3 +822,36 @@ de la regresión logística provisional:
 **Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
 generándose localmente y no se sube a Git; su uso en Docker/Render se decide
 en #29/#33.
+
+## Dockerfile de la app (#29)
+
+- **Base `python:3.12-slim`** (versión del proyecto) y `libgomp1`, que XGBoost
+  necesita para OpenMP.
+- **`requirements-app.txt`:** solo las dependencias de la app (pandas, numpy,
+  scikit-learn, XGBoost, joblib, Streamlit) con las mismas versiones que
+  `requirements.txt`. Se usa `xgboost-cpu`, la misma versión sin librerías de
+  GPU: la imagen baja de 1,66 GB a 1,12 GB. Un test comprueba que las
+  versiones coinciden con `requirements.txt`.
+- **`.dockerignore` como lista de permitidos:** entran `app/`, `src/`,
+  `.streamlit/`, el modelo y `requirements-app.txt`; quedan fuera datos
+  (raw, processed, feedback), `.venv`, notebooks y docs.
+  Después de las reglas de permitidos se excluyen expresamente secretos
+  (`.env`, `.env.*`, `secrets.toml`, `*.pem`, `*.key`) aunque estén en
+  carpetas permitidas; comprobado con archivos ficticios.
+- **Modelo:** se copia `models/app_model.joblib`, que se genera en local con
+  `python -m src.train_app_model` (no está en Git). Si falta, `docker build`
+  falla al copiarlo.
+- **Ejecución:** Streamlit se lanza con `exec`, así recibe la señal de
+  parada y `docker stop` termina limpio (código 0, no 137). Usuario sin
+  privilegios, puerto configurable con `PORT`
+  (8501 por defecto; Render asigna el suyo), `HEALTHCHECK` en
+  `/_stcore/health` y carpeta `data/` escribible para la app.
+- **Comprobado en local:** la imagen se construye, el contenedor queda
+  `healthy`, carga el champion, predice igual que en local (apartamento
+  estándar → Medio, habitación con baño compartido → Económico, combinación
+  contradictoria rechazada) y responde con `PORT=10000`.
+
+**Pendiente para Render (#33):** Render construye la imagen desde GitHub,
+donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
+(p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
+arrancar).
