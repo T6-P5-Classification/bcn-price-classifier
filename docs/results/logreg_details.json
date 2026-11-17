@@ -1,0 +1,165 @@
+{
+  "provenance": {
+    "source_hashes": {
+      "src/preprocessing.py": "e154b587d73ee0461efebdac1ea59248465e9a59eeb1f88a091c936074fa856c",
+      "src/cleaning.py": "3d7c6b53f053d3fbfa2b5a84aa0de108807c9e072de52e2f6305290ecf171ea9",
+      "notebook_code": "64fc15f6d47882bba582f015107132361c54ced6f84238b33f624d636febe44a"
+    },
+    "code_state": "Base commit plus notebook changes in this delivery",
+    "code_commit": "5be5a63fcec6e779b070efb7d08027f5534c9bb3",
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "thresholds": {
+      "lower": 122.0,
+      "upper": 249.72333333333327
+    },
+    "n_train": 10088,
+    "n_features": 23,
+    "evaluation_set": "train_oof",
+    "nested_cv": false,
+    "historical_test_exposure": true,
+    "python": "3.12.5",
+    "seed": 42,
+    "trials": 20,
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scikit-learn": "1.9.1",
+      "optuna": "5.0.0",
+      "matplotlib": "3.11.2"
+    },
+    "protocol_status": "23 variables; CV y diagnosticos OOF solo en train; test reservado al champion en #22; presupuesto local 20 trials",
+    "source_notebook": "notebooks/04_model_logreg.ipynb"
+  },
+  "reports": {
+    "DummyClassifier": {
+      "Económico": {
+        "precision": 0.33366375892149086,
+        "recall": 1.0,
+        "f1-score": 0.5003716366879738,
+        "support": 3366.0
+      },
+      "Medio": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 3359.0
+      },
+      "Premium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 3363.0
+      },
+      "accuracy": 0.33366375892149086,
+      "macro avg": {
+        "precision": 0.11122125297383029,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.16679054556265793,
+        "support": 10088.0
+      },
+      "weighted avg": {
+        "precision": 0.11133150401761877,
+        "recall": 0.33366375892149086,
+        "f1-score": 0.16695588115500792,
+        "support": 10088.0
+      }
+    },
+    "LogisticRegression": {
+      "Económico": {
+        "precision": 0.8544655929721815,
+        "recall": 0.8669043374925728,
+        "f1-score": 0.86064002359534,
+        "support": 3366.0
+      },
+      "Medio": {
+        "precision": 0.6132019115890084,
+        "recall": 0.6111938076808574,
+        "f1-score": 0.6121962129118831,
+        "support": 3359.0
+      },
+      "Premium": {
+        "precision": 0.718796992481203,
+        "recall": 0.7106749925661612,
+        "f1-score": 0.7147129186602871,
+        "support": 3363.0
+      },
+      "accuracy": 0.7296788263283108,
+      "macro avg": {
+        "precision": 0.728821499014131,
+        "recall": 0.7295910459131972,
+        "f1-score": 0.7291830517225034,
+        "support": 10088.0
+      },
+      "weighted avg": {
+        "precision": 0.728904707839624,
+        "recall": 0.7296788263283108,
+        "f1-score": 0.7292685313290519,
+        "support": 10088.0
+      }
+    }
+  },
+  "confusion_matrices": {
+    "DummyClassifier": [
+      [
+        3366,
+        0,
+        0
+      ],
+      [
+        3359,
+        0,
+        0
+      ],
+      [
+        3363,
+        0,
+        0
+      ]
+    ],
+    "LogisticRegression": [
+      [
+        2918,
+        382,
+        66
+      ],
+      [
+        437,
+        2053,
+        869
+      ],
+      [
+        60,
+        913,
+        2390
+      ]
+    ]
+  },
+  "best_params": {
+    "C": 0.5971896122019431,
+    "class_weight": null
+  },
+  "folds": {
+    "cv_summary": {
+      "cv_train_f1_macro": 0.7395854079816718,
+      "cv_validation_f1_macro": 0.7291233516371436,
+      "cv_validation_std": 0.0060910473000229896,
+      "gap": 0.010462056344528237,
+      "gap_under_005": true,
+      "cv_fit_seconds": 0.6687955856323242
+    },
+    "fold_train": [
+      0.7385411940983126,
+      0.7401029550684478,
+      0.7401415405016788,
+      0.7401243133625003,
+      0.7390170368774199
+    ],
+    "fold_validation": [
+      0.7197593933633358,
+      0.7304215789156606,
+      0.7380422496431424,
+      0.7315449683371648,
+      0.7258485679264143
+    ]
+  }
+}

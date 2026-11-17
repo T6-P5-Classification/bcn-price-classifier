@@ -307,6 +307,68 @@ Comparar candidatos por validación; considerar también estabilidad entre
 folds, diferencia train/validación, coste de entrenamiento e inferencia.
 Usar `DummyClassifier` como referencia con el mismo protocolo (#18).
 
+### Presupuesto acordado para Random Forest (#19)
+
+Se fijan **40 pruebas de Optuna para Random Forest**, con las cinco particiones
+comunes y solo entrenamiento: 200 ajustes de búsqueda. El espacio de búsqueda
+es `n_estimators` 100–500 (paso 50), `max_depth` 3–20, `min_samples_split`
+2–20, `min_samples_leaf` 1–10 y `max_features` 0,3–1,0. Parámetros fijos:
+`random_state=42`, `n_jobs=1`, `bootstrap=True`, `verbose=0`. La semilla TPE
+es 42; no hay poda, parada temprana ni ampliación automática. Referencias y
+diagnósticos fuera de fold son ajustes adicionales, no nuevas pruebas de
+Optuna.
+
+Se maximiza F1 macro medio de validación y se selecciona la mejor prueba
+completa que cumpla `gap < 0,05`. La mejor prueba sin restricción puede no
+ser elegible. Si ninguna cumple, se informa que el requisito está pendiente,
+sin evaluar test para corregirlo ni presentar otro candidato como válido.
+
+Este acuerdo es específico de la entrega de Random Forest; no declara uniformes
+los presupuestos anteriores del equipo ni autoriza repetir otras búsquedas.
+La salida para la tabla común es un CSV independiente: esta issue no cambia
+el notebook compartido de selección del champion ni utiliza test.
+
+Resultado local comprobado de #19: 40 pruebas completas, 8 elegibles;
+seleccionada la de índice 8. F1 macro medio de ajuste 0,80548 y validación
+0,75935 (desviación poblacional 0,00558); gap medio 0,04612. Se cumple el
+criterio para la **media**, no para cada fold ni para cualquier población.
+Frente al Random Forest por defecto (validación 0,77789; gap 0,21126), se
+acepta aproximadamente 0,0185 puntos menos de F1 para reducir el gap de unos
+0,21 a menos de 0,05. Solo 8 de las 40 pruebas cumplen `gap < 0,05`: es un
+buen ejemplo de por qué se usa el límite de gap. Accuracy OOF 0,75882 y tasa
+extrema 0,00971; test sin evaluar. Parámetros, tiempos, versiones, métricas
+por clase y límites quedan en el notebook y los resultados agregados.
+### Presupuesto acordado para XGBoost (#20)
+
+Se fijan **40 pruebas de Optuna para XGBoost**, con las cinco particiones
+comunes y solo entrenamiento: 200 ajustes de búsqueda. El espacio de
+búsqueda, parámetros fijos, semilla TPE 42, estados y tiempo total quedan
+registrados en el notebook y los archivos agregados `docs/results/xgboost_*`.
+No hay poda, parada temprana ni ampliación automática. Cualquier ampliación
+debe acordarse antes de ejecutarla. Referencias y diagnósticos fuera de fold
+son ajustes adicionales, no nuevas pruebas de Optuna.
+
+Se maximiza F1 macro medio de validación y se selecciona la mejor prueba
+completa que cumpla `gap < 0.05`. La mejor prueba sin restricción puede no
+ser elegible. Si ninguna cumple, se informa que el requisito está pendiente,
+sin evaluar test para corregirlo ni presentar otro candidato como válido.
+
+Este acuerdo es específico de la entrega de XGBoost; no declara uniformes
+los presupuestos anteriores del equipo ni autoriza repetir otras búsquedas.
+El detalle reproducible y los límites están en [la guía de XGBoost](xgboost.md).
+La salida para la tabla común es un CSV independiente: esta issue no cambia
+el notebook compartido de selección del champion ni utiliza test.
+
+Resultado local comprobado de #20: 40 pruebas completas, 27 elegibles;
+seleccionada la de índice 34. F1 macro medio de ajuste 0,81135 y validación
+0,76312 (desviación poblacional 0,00324); gap medio 0,04824. Se cumple el
+criterio para la **media**, no para cada fold ni para cualquier población.
+Frente a XGBoost por defecto (validación 0,77342; gap 0,15220), se acepta
+aproximadamente un punto menos de F1 para reducir el gap. No se afirma una
+mejora de puntuación. Accuracy OOF 0,76299 y tasa extrema 102/10.088; test
+sin evaluar. Parámetros, tiempos, versiones, métricas por clase y límites
+quedan en la guía específica y los resultados agregados.
+
 ### Métricas e interpretación
 
 - **Principal: F1 macro**, media del F1 de las tres clases con el mismo peso.
@@ -407,6 +469,216 @@ joblib. La prueba de nulos confirma que inferencia no reaprende las medianas.
 No cambia las funciones compartidas ni las decisiones de otros modelos.
 
 Los tests sintéticos no certifican calidad predictiva ni sustituyen la prueba
-del artefacto champion una vez integrado. Las seis pruebas nuevas pasan;
-la suite completa contiene 23 pruebas correctas. Comandos y límites en
+del artefacto champion una vez integrado. Las seis pruebas comprueban este contrato con datos sintéticos. La suite
+completa debe ejecutarse de nuevo al actualizar desde `dev`. Comandos y límites en
 [docs/test_model.md](test_model.md).
+
+## Modelo Random Forest (#19)
+
+El notebook reutiliza el split y las 23 variables compartidas. Compara
+Dummy most_frequent y Random Forest, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna
+maximiza la media de F1 macro de validación con TPE y semilla 42, 40 trials
+locales. Espacio: `n_estimators` 100–500 (paso 50), `max_depth` 3–20,
+`min_samples_split` 2–20, `min_samples_leaf` 1–10 y `max_features` 0,3–1,0.
+Parámetros fijos: `random_state=42`, `n_jobs=1`, `bootstrap=True`,
+`verbose=0`. Se selecciona la mejor prueba completa con `gap < 0,05`; si
+ninguna cumple, se informa que el requisito queda pendiente.
+
+El Random Forest por defecto memoriza: F1 macro medio de ajuste 0,98915 y
+validación 0,77789, con gap 0,21126. La mejor prueba sin restricción alcanza
+0,77831 de validación, pero con gap 0,17641; memorizar no mejora la
+validación de forma útil. El modelo elegido (índice 8) obtiene F1 macro medio
+de ajuste 0,80548 y validación 0,75935 (desviación poblacional 0,00558),
+con gap 0,04612, es decir, unos 0,0185 puntos menos de F1 que el modelo por
+defecto a cambio de reducir el gap de 0,21 a menos de 0,05. Solo 8 de las
+40 pruebas cumplen `gap < 0,05`.
+
+## Baseline de regresión logística (#18)
+
+El notebook reutiliza el split y las 23 variables compartidas. Compara Dummy
+most_frequent y regresión logística, usando siempre el Pipeline completo en
+cinco folds estratificados (`shuffle=True`, `random_state=42`). Optuna maximiza
+la media de F1 macro de validación con TPE y semilla 42, 20 trials locales,
+C log-uniforme entre 0.001 y 100 y class_weight None/balanced. Solver lbfgs,
+L2 por defecto y max_iter=5000. El presupuesto común sigue pendiente.
+
+El gap es media F1 macro train menos media F1 macro validación, con límite
+estricto <0.05 absoluto. No se ajusta contra el test reservado para cumplirlo.
+Tras elegir hiperparámetros, `cross_val_predict` produce las predicciones OOF
+de cada modelo sobre train con los mismos folds y el Pipeline completo.
+Accuracy, F1 macro, informes por clase, matrices y errores extremos usan solo
+esas predicciones. El F1 agregado OOF no sustituye la media de F1 por fold
+como criterio de selección. Las etiquetas se presentan en el orden común.
+Accuracy OOF 0,75882, F1 macro OOF 0,75938 y tasa de errores extremos
+0,00971.
+
+El notebook no evalúa ni inspecciona los objetos de test: la evaluación del
+test reservado corresponde solo al champion elegido en #22. No se serializa
+un modelo ni se declara un champion. La tabla común contiene únicamente CV
+y diagnósticos `train_oof`, con nombres de columnas `oof_*`, no `test_*`.
+`rf_trials.csv` registra la búsqueda. No se guardan filas ni predicciones
+individuales.
+
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. El Random Forest por
+defecto muestra un gap de 0,21; el límite de 0,05 es un requisito acordado,
+no una garantía de buen servicio ni de ausencia universal de sobreajuste.
+No se ha cambiado la configuración de búsqueda en respuesta a resultados de
+test. La salida para la tabla común es un CSV independiente; esta issue no
+cambia el notebook compartido de selección del champion ni utiliza test.
+
+`tests/test_rf_model.py` ejecuta carga, CV, Optuna y diagnóstico con train
+sintético y objetos de test que fallan si se inspeccionan. Comprueba que los
+informes y las matrices cubren train y que no se exportan columnas de
+resultados `test_*`. La ejecución completa verifica los artefactos reales.
+`logreg_details.json` registra informes, matrices, folds, umbrales, versiones
+y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
+predicciones individuales.
+
+**Límites:** los hiperparámetros se seleccionan con los mismos folds: OOF no
+es nested CV y sus diagnósticos pueden ser optimistas. Versiones anteriores
+de #18 ya evaluaron el mismo test; retirar sus resultados de la tabla no
+deshace esa exposición histórica. Antes de presentar un resultado final
+como independiente, el equipo debe considerar ese antecedente. No se ha
+cambiado la configuración de búsqueda en respuesta a esos resultados.
+
+`tests/test_logreg_notebook.py` ejecuta carga, CV, Optuna y diagnóstico con
+train sintético y objetos de test que fallan si se inspeccionan. Comprueba
+que los informes y las matrices cubren train y que no se exportan columnas
+de resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+### Carga automática de la tabla común (#22)
+
+`08_comparison.ipynb` descubre todos los `docs/results/*_comparison.csv`,
+comprueba su esquema y comparabilidad y los concatena sin reentrenar.
+Añade `source_csv` para identificar el origen de cada fila y ordena por F1
+macro medio de validación. Las referencias Dummy repetidas se conservan con
+su procedencia; no se declara automáticamente un champion.
+
+Se rechazan resultados de test, scores inválidos, gaps inconsistentes y
+metadatos de snapshot/hash/CV diferentes. El contrato de columnas para los
+productores está en [model_comparison.md](model_comparison.md). Las
+instrucciones de ejecución de la baseline están en [logreg.md](logreg.md),
+para mantener esta entrega independiente de las ediciones del README general.
+
+## Tests de integridad de datos (#30): adaptación a las 23 variables
+
+Los tests de `tests/test_data.py` emplean CSV comprimidos sintéticos y la
+carga real `load_train_test()`, sin leer el snapshot ni evaluar su test
+reservado. Se completa la tabla ficticia con barrio, distrito y tipo de
+propiedad para cubrir todas las entradas actuales. Ambos conjuntos deben
+coincidir exactamente con `MODEL_FEATURES`, incluido su orden, y conservar
+los mismos tipos. Se mantienen comprobaciones independientes que prohíben
+precio, identificadores, datos personales y campos derivados de ingresos:
+usar la lista compartida no elimina esas protecciones.
+
+Los nulos de `minimum_nights` deben conservarse en las filas correspondientes,
+sin rellenado previo a la imputación del Pipeline. No se exige el indicador
+`minimum_nights_was_missing` ni las antiguas entradas `amenities_count` o
+`has_clothes_dryer`, que ya no pertenecen al modelo acordado. Se actualizan
+expectativas de los tests, no las reglas de preparación ni el conjunto de
+variables. La guía de ejecución está en el README y la verificación en
+`docs/pruebas_manuales.md`, sección de la issue 30.
+
+## LightGBM (#21)
+
+El notebook `notebooks/07_model_lightgbm.ipynb` reutiliza el split y las 23
+variables compartidas; el test se carga con la función común, pero no se usa
+para evaluar ni seleccionar. Todas las validaciones
+cruzadas usan el Pipeline completo, los mismos cinco folds y `n_jobs=1`.
+
+- **Referencias:** Dummy `most_frequent` (F1 macro 0,167) y LightGBM por
+  defecto (F1 validación ≈ 0,768, gap ≈ 0,11).
+- **Optuna:** 40 pruebas secuenciales, TPE con semilla 42, solo train. Espacio:
+  `n_estimators` 100–600, `learning_rate` 0,01–0,1 (log), `num_leaves` 8–48,
+  `max_depth` 3–8, `min_child_samples` 20–150, `subsample` 0,6–1
+  (`subsample_freq=1`), `colsample_bytree` 0,5–1, `reg_lambda` 0,001–30 (log).
+  Maximiza la media de F1 macro de validación y registra el gap de cada prueba.
+- **Selección:** la mejor prueba con gap < 0,05, la misma regla que XGBoost.
+  Las pruebas con mejor validación (≈ 0,777) tienen gap de 0,14–0,19, así que
+  se acepta ≈ 1,4 puntos menos de validación para cumplir el límite acordado.
+- **Resultado (validación cruzada en train):** F1 train 0,812, validación
+  0,763 ± 0,002, gap 0,049; errores extremos OOF 1,0 %. Por clase (OOF):
+  Económico 0,88, Medio 0,66, Premium 0,75. Medio tiene el F1 más bajo; que
+  limite con las otras dos clases es una posible explicación, no comprobada.
+- **Tabla común:** `docs/results/lightgbm_comparison.csv`, con la
+  configuración completa del estimador en `params`.
+- **Registro completo:** `docs/results/lightgbm_trials.csv` (las 40 pruebas) y
+  `docs/results/lightgbm_details.json` (versiones, regla de selección,
+  resultados por fold y diagnósticos OOF).
+
+**Límites:** el gap medio (0,0495) queda justo por debajo del límite y en 3 de
+los 5 folds el gap individual lo supera ligeramente (máximo 0,052). La regla
+común se aplica a la media, así que no se incumple, pero cumplirla no demuestra
+que el modelo no sobreajuste; otra prueba con gap
+0,043 y validación 0,761 es equivalente dentro del ruido entre folds, pero se
+mantiene la regla común sin cambiarla tras ver los resultados. Seleccionar y
+calcular OOF en los mismos folds no es validación anidada ni una evaluación
+final.
+
+## EDA geográfico y modalidad alquilada (#11)
+
+El alcance confirmado utiliza solo entrenamiento de la carga común y las
+categorías reales según precio/umbrales. Se realizan tres mapas de porcentaje
+de categoría dentro de distrito, barras por distrito y `room_type`, y un
+desglose distrito × modalidad con tamaños de muestra. No hay predicciones,
+entrenamiento, cambios en las 23 variables ni consulta del test reservado.
+
+El GeoJSON sirve solo para dibujar. Se comprueban nombres de barrio y
+coherencia de distrito sin unir geometría a las entradas del modelo. Sus
+polígonos de barrio se colorean con el porcentaje agregado del distrito,
+con escala común 0–100 %, sin presentarlo como estimación por barrio. La
+superficie del dibujo no mide número de anuncios. Las piezas repetidas de
+un barrio se dibujan sin multiplicar registros.
+
+Los porcentajes usan como denominador todos los anuncios del grupo indicado.
+Se muestran recuentos y n; grupos observados con n < 30 se señalan como
+pequeños mediante una convención descriptiva, no una prueba estadística.
+Combinaciones sin observaciones conservan porcentajes ausentes y se pintan
+grises, en lugar de confundirlas con 0 %.
+
+Comprobado en el archivo local: 10.088 anuncios de train, 10 distritos,
+67 barrios con correspondencia completa y cuatro modalidades. El GeoJSON
+contiene 75 objetos y 73 nombres únicos, seis sin observaciones de train.
+No se impone a entrenamiento la referencia previa de 68 barrios. Hay 40
+combinaciones distrito × modalidad: siete vacías y 13 observadas con n < 30.
+Son asociaciones descriptivas de este snapshot, no causas, rankings estables
+de zonas pequeñas ni calidad predictiva demostrada. Reproducción, resultados
+y límites: [EDA por distritos y room_type](eda_distritos_room_type.md).
+
+## Análisis de errores vecinos y extremos (#17): alcance y discrepancia documentada
+
+El alcance confirmado analiza las cuatro configuraciones seleccionadas, sin
+repetir Optuna, consultar test, cambiar variables ni elegir champion. Se añade
+una sección separada en `08_comparison.ipynb`, conservando el lector existente.
+Se mantienen las cinco particiones comunes y el Pipeline completo en cada
+ajuste. Se distinguen las seis direcciones real/predicha, porcentajes sobre
+todos los anuncios, sobre solo errores y dentro de cada categoría real.
+No se atribuyen costes económicos ni se incluyen subgrupos o límites de precio.
+
+La reconstrucción debe contrastarse con las métricas OOF de origen. La primera
+ejecución se ha detenido con RF: accuracy local 0,7595162569389373 frente a
+0,7588223632038065 guardada, siete aciertos de diferencia entre 10.088 anuncios.
+Se verificaron datos, particiones, parámetros y coincidencia del código de RF
+y preparación con su commit declarado; la causa aún no está verificada.
+No se alteran el resultado de origen, el modelo o la tolerancia para forzar
+coincidencias. Tras revisar procedencia y obtener la misma diferencia con las
+funciones originales de RF, el usuario autoriza distinguir métricas de origen
+y reconstrucción local. Solo RF tiene excepción explícita a la detención:
+se conservan valores, diferencias y flags de coincidencia, sin presentar una
+reproducción exacta. La causa sigue sin verificarse; no se atribuye al entorno
+por observar una versión de Python distinta. El lector original conserva
+sus métricas de selección. No se corrige otra entrega desde esta issue.
+Evidencia, requisitos y límites: [análisis de errores](analisis_errores.md).
+
+Diagnóstico local completado: 2.727 errores en regresión logística, 2.426 en
+RF local, 2.391 en XGBoost y 2.393 en LightGBM, cada uno sobre los mismos
+10.088 anuncios de train. De ellos son extremos 126, 98, 102 y 98,
+respectivamente. Los demás son vecinos; no se invierten real y predicho ni
+se mezclan porcentajes sobre todos los anuncios con porcentajes sobre solo
+errores. La confusión más frecuente en los cuatro es real Premium/predicho
+Medio. No se demuestra su causa, significación de diferencias pequeñas ni
+se elige champion. No se guardan predicciones individuales ni se sustituye
+la tabla de métricas original. RF sigue identificado como reconstrucción
+local no idéntica al origen; los otros tres reproducen sus métricas OOF.

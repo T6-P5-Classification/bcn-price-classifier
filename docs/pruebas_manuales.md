@@ -92,6 +92,8 @@ solo porque ya tenga una revisión o una propuesta abierta.
 
 Esta entrega está preparada en la rama `test/30-data-integrity`; comprobar
 si ya fue integrada antes de elegir rama. Sus tests no requieren Airbnb.
+La corrección se prepara con la base `dev` de commit `6795cd6`, manteniendo
+el esquema de 23 variables acordado.
 
 Desde la raíz, con el entorno virtual activado:
 
@@ -100,13 +102,39 @@ python -m pytest -q tests/test_data.py
 python -m pytest -q
 ```
 
-Esperado para esa entrega: 11 tests de integridad y 25 tests en total. No
-esperar el total de 25 en una rama que todavía no los contiene.
+Esperado para esta entrega: 11 tests de integridad correctos. El total de
+la suite depende de las otras entregas incorporadas; no usar el antiguo
+total de 25 como contrato fijo.
 
 Los controles comprueban precios válidos, separación e identidad de filas,
 esquema y variables prohibidas, nulos permitidos, umbrales solo de train,
 categorías coherentes, estratificación provisional, reproducibilidad,
 precios exactamente en los límites y error con precios no separables.
+
+1. Con la rama indicada y el entorno activado, ejecutar primero el comando
+   específico y después la suite completa. Ambos realizan cálculos locales,
+   crean archivos sintéticos temporales y pueden escribir cachés; no leen
+   el CSV de Airbnb, no usan credenciales ni modifican servicios remotos.
+2. En `tests/test_data.py`, comprobar que el caso de esquema exige todas las
+   columnas de `MODEL_FEATURES` en orden y mantiene las prohibiciones
+   independientes de precio e identificadores. La tabla ficticia debe aportar
+   barrio, distrito y tipo de propiedad, además de las demás entradas.
+3. En el caso de ausencias, verificar que se comparan los valores completos
+   de `minimum_nights` con las filas originales, incluidos sus nulos, sin
+   acceder a `minimum_nights_was_missing`.
+4. Leer el README: deben estar presentes la guía de tests y la documentación
+   vigente de modelos, sin marcadores de conflicto. Esta lectura no cambia
+   archivos ni autoriza publicación. No se reentrenan modelos en esta corrección.
+5. Si falla un test, anotar el nombre y el error y detener la publicación.
+   No recuperar variables descartadas ni eliminar protecciones para forzar
+   un resultado correcto. Un fallo de entorno se distingue de una regresión.
+
+Resultado comprobado de esta corrección: antes, 2 fallos y 9 tests de
+integridad correctos; después, 11 correctos y 56 correctos en la suite
+completa con esta base. Además, se comprobó en memoria con datos sintéticos
+que los controles rechazan una columna acordada ausente, columnas en orden
+alterado, precio infiltrado y nulos de `minimum_nights` rellenados antes de
+tiempo. Estas comprobaciones no modificaron código de producción ni datos reales.
 
 ## Issue 10 — EDA por categoría real
 
@@ -140,6 +168,165 @@ Archivo: `notebooks/02_eda_classes.ipynb`.
 9. Ejecutar `python -m pytest -q` desde la raíz como comprobación adicional
    del código existente. El éxito del notebook y el de los tests son hechos
    separados; no se han evaluado métricas predictivas en esta issue.
+
+## Issue 11 — Mapa por distritos y análisis por room_type
+
+Rama de entrega: `feat/11-district-room-type-eda`, desde `dev` en `75f3491`.
+Notebook: `notebooks/03_eda_map.ipynb`. Detalle y resultados en
+[`eda_distritos_room_type.md`](eda_distritos_room_type.md).
+
+1. **Requisitos, solo lectura:** comprobar rama, entorno del proyecto y
+   archivos `data/raw/listings.csv.gz` y `data/raw/neighbourhoods.geojson`
+   según README. Las rutas de datos están ignoradas por Git. Si falta un
+   archivo, seguir su descarga; no sustituir ciudad o versión sin declararlo.
+2. **Tests:** desde la raíz, ejecutar
+   `.venv/bin/python -m pytest -q tests/test_eda_map.py tests/test_eda_map_results.py`
+   y después `.venv/bin/python -m pytest -q`. Los primeros usan grupos y
+   polígonos sintéticos y resultados agregados, sin los archivos raw. Pueden
+   crear cachés locales; no publican nada ni modifican registros remotos.
+   Esperado: todos correctos. No son una evaluación de modelos.
+3. **Leer la entrega:** abrir el notebook y sus salidas guardadas sin
+   ejecutarlo. Esperado: todas las celdas de código con número de ejecución,
+   ninguna salida de error y cuatro figuras legibles. En los mapas son
+   categorías REALES, no predicciones; el color es porcentaje dentro de
+   distrito, no número de anuncios ni precio en euros. La escala es común
+   0–100 %. Los números de distrito remiten a la leyenda.
+4. **Comprobar cobertura y totales:** para el snapshot local, 10.088 anuncios,
+   10 distritos, 67 barrios de train y cuatro modalidades. Todos los barrios
+   de train tienen geometría. El GeoJSON tiene 75 objetos y 73 nombres, no
+   75 barrios distintos. Una repetición geométrica no debe aumentar n. Los
+   tres CSV agregados deben conservar el total y las cantidades por clase.
+5. **Leer cruces:** revisar porcentajes y n. Las 40 combinaciones contienen
+   siete vacías y 13 observadas con n < 30. En vacías, porcentajes ausentes y
+   gris con `n=0`, no 0 %; † identifica grupos pequeños, no significación.
+6. **Reproducción opcional:** antes de repetir, conservar copia del notebook
+   y de `docs/results/eda11_*` si se quiere preservar la ejecución anterior.
+   Ejecutar `.venv/bin/python tools/run_eda_map_notebook.py`. Lee CSV y
+   GeoJSON, consume CPU y reemplaza esas cinco salidas. No modifica los raw,
+   no consulta servicios externos, no entrena modelos ni analiza test. No
+   ejecutar simultáneamente desde el editor.
+7. **Procedencia y límites:** `eda11_metadata.json` debe indicar train,
+   `test_inspected=false`, `model_trained=false`, `geometry_joined_to_model=false`
+   y 23 entradas; revisar firmas y versiones. No se exige que otro snapshot
+   dé las mismas cifras. Cumplir los controles no demuestra causas ni
+   rendimiento futuro con usuarios reales.
+8. **Ante fallo:** detenerse ante datos ausentes, nombres sin correspondencia,
+   diferencias de distrito o errores de celda. Anotar el mensaje sin publicar
+   filas personales. No borrar grupos ni alterar datos para lograr el total
+   esperado. Revisar entorno, snapshot y contrato antes de repetir.
+
+Estos pasos no autorizan commit, publicación, aprobación, cambio de tarjeta
+ni merge. La verificación visual y la ejecución real se registran por
+separado de los tests sintéticos.
+
+Comprobado en esta entrega: ocho celdas de código ejecutadas sin errores,
+cuatro figuras revisadas visualmente, 17 tests propios y 84 tests totales
+correctos. El lector común de comparación de modelos continúa aceptando
+sus cuatro CSV y siete filas, sin incorporar los agregados descriptivos de EDA.
+
+## Issue 20 — XGBoost con 40 pruebas de Optuna
+
+1. **Preparación:** desde la raíz del proyecto, usar `feat/20-xgboost` hasta
+   que se integre, entorno `.venv` y el CSV del README. Comprobar
+   `python -c "import xgboost; print(xgboost.__version__)"`. Solo lee software
+   instalado; si falla por OpenMP, no entrenar hasta resolver la dependencia
+   siguiendo el README. No reinstalar dependencias compartidas sin revisar.
+2. **Tests sintéticos:** ejecutar `python -m pytest -q tests/test_xgboost_model.py`
+   y después `python -m pytest -q`. Ejecuta ajustes pequeños con datos sintéticos;
+   no lee el CSV real ni evalúa calidad predictiva en producción. Puede crear
+   cachés locales. Esperado: todas las pruebas pasan.
+3. **Inspección de entrega:** abrir `notebooks/06_model_xgboost.ipynb` y los
+   archivos `docs/results/xgboost_*`. Esta lectura no cambia registros.
+   Comprobar 23 variables, 40 pruebas completas, cinco folds por prueba,
+   candidato con gap < 0,05 y test sin evaluar. La tabla de los diez mejores
+   trials no es el registro completo: el CSV de trials debe tener 40 filas.
+4. **Reproducción opcional:** antes de repetir, conservar copia del notebook
+   y de los tres archivos agregados si se quiere mantener la ejecución anterior.
+   Ejecutar `python tools/run_xgboost_notebook.py` desde la raíz. Lee el CSV,
+   consume CPU y reemplaza esas cuatro salidas; no usa servicios remotos, no
+   modifica datos y no guarda modelos ni predicciones individuales. No ejecutar
+   a la vez desde el editor. Esperado: ejecución completa sin errores de celda.
+5. **Métricas:** en `xgboost_details.json`, comprobar `test_evaluated=false`,
+   `nested_cv=false`, 23 campos en `input_schema`, mapeo Económico=0/Medio=1/
+   Premium=2 y registro de versiones/firmas. Revisar `selected_cv`: media train
+   menos media validación debe coincidir con gap, sin redondear para aprobarlo.
+   No confundir la media de F1 por fold con el F1 agregado OOF.
+6. **Errores:** cada matriz debe sumar las filas de entrenamiento (10.088 para
+   este snapshot); filas reales y columnas predichas, orden común de clases.
+   Revisar precision/recall/F1 por categoría. La tasa extrema divide ambas
+   confusiones Económico/Premium entre TODOS los anuncios OOF.
+7. **Integración:** el CSV de comparación tiene las 18 columnas descritas en
+   `docs/xgboost.md` y no tiene columnas `test_*`. Confirmar que el lector común
+   ya está integrado antes de exigir que aparezca XGBoost en la comparación.
+   Esta issue no sustituye ni implementa ese lector o la elección del champion.
+8. **Fallo:** detenerse ante columna ausente, error de celda o ningún trial
+   elegible. Anotar celda/comando y mensaje, comprobar datos/entorno y solicitar
+   revisión; no borrar tests, ampliar pruebas o consultar test para forzar
+   aceptación. Un archivo de resultados previo no acredita una ejecución fallida.
+
+Estas comprobaciones no autorizan publicación, aprobación ni merge. Los
+resultados concretos de la ejecución se resumen en `docs/xgboost.md`.
+
+## Issue 17 — Análisis de errores entre categorías vecinas
+
+Rama: `feat/17-neighbour-class-errors`, desde `dev` en `e2e13e1`.
+Archivo: `notebooks/08_comparison.ipynb`, sección nueva de la issue 17.
+Guía completa: [`analisis_errores.md`](analisis_errores.md).
+
+1. **Requisitos, solo lectura:** comprobar rama, entorno del proyecto, CSV
+   local del README y cuatro CSV de comparación de los modelos seleccionados.
+   No se requiere GeoJSON. No ejecutar una búsqueda para «completar» candidatos.
+2. **Tests:** desde la raíz, ejecutar `.venv/bin/python -m pytest -q
+   tests/test_error_analysis.py tests/test_comparison_notebook.py` en una
+   sola línea, y después
+   `.venv/bin/python -m pytest -q`. Incluir también
+   `tests/test_error_analysis_results.py` para validar los agregados guardados.
+   Usan datos sintéticos y agregados; no
+   requieren Airbnb raw ni servicios externos. Pueden crear cachés locales.
+   Esperado: todas las comprobaciones correctas, sin debilitar las del lector.
+3. **Leer salidas guardadas:** abrir el notebook sin ejecutar. La primera
+   sección sigue siendo el lector de CSV; la nueva no elige un champion.
+   Comprobar que las filas de matrices son categorías REALES y las columnas
+   PREDICHAS, con el orden Económico/Medio/Premium. Cada matriz debe cubrir
+   los anuncios de train; no debe incluir test ni referencias Dummy duplicadas.
+4. **Denominadores:** en el primer gráfico de errores, porcentajes sobre
+   TODOS los anuncios y aciertos omitidos; las barras no suman 100 %. En el
+   segundo, solo predicciones EQUIVOCADAS: vecinos y extremos suman 100 %
+   cuando existen errores. No confundirlos con porcentajes por categoría real.
+5. **Coherencia:** `error17_summary.csv` tiene cuatro filas y
+   `error17_directions.csv` seis por modelo. Aciertos + vecinos + extremos
+   deben sumar n; las seis confusiones suman los errores. En cada dirección,
+   comprobar real y predicha antes de interpretar un porcentaje.
+6. **Procedencia:** `error17_details.json` debe indicar `train_oof`,
+   `test_inspected=false`, `nested_cv=false`, sin búsqueda ni ajuste final
+   con todo train, 20 ajustes por folds y 23 entradas. Revisar firma de datos,
+   firmas de CSV/código, versiones, configuración efectiva y contraste
+   frente a las métricas OOF de origen. RF debe conservar explícitamente sus
+   diferencias autorizadas, sin marcarlas como coincidencias.
+7. **Reproducción opcional:** conservar copia del notebook y los tres archivos
+   `error17_*` si se quiere mantener la ejecución anterior. Ejecutar
+   `.venv/bin/python tools/run_error_analysis_notebook.py`. Lee el CSV real,
+   consume CPU, realiza 20 ajustes fijados y reemplaza esas cuatro salidas.
+   No consulta test, no hace Optuna, no guarda predicciones individuales ni
+   modifica raw/CSV de candidatos/servicios remotos. No ejecutar simultáneamente
+   desde editor y terminal.
+8. **Ante fallo:** detenerse si falta un candidato, se duplica, cambian hash,
+   protocolo o métricas sin excepción acordada. Anotar celda/mensaje, revisar datos, entorno y
+   parámetros; no consultar test, repetir Optuna ni cambiar las cifras para
+   forzar coincidencias. Un resultado antiguo no valida una ejecución fallida.
+
+Estos pasos no autorizan publicación, aprobación, cambios de tarjeta ni merge.
+
+El primer intento se detuvo por RF: accuracy local 0,759516 frente a 0,758822
+del CSV. La revisión con sus funciones originales obtuvo la misma diferencia.
+El usuario autorizó continuar mostrándolas por separado: no se cambia el
+CSV de RF ni se afirma reproducción exacta. Ver `analisis_errores.md`.
+
+Comprobado al completar la ejecución: siete celdas de código sin errores,
+seis figuras y tablas agregadas de cuatro modelos/24 direcciones. Los otros
+tres modelos coinciden con sus métricas OOF de origen; RF conserva el flag
+de diferencia y ambas cifras. Pasan 26 tests nuevos y 110 tests en la suite
+completa. Revisar visualmente matrices y denominadores además de los tests.
 
 ## Revisión de entregas documentales y automatización
 

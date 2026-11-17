@@ -1,0 +1,41 @@
+neighbourhood_group_cleansed,room_type,n_listings,count_Económico,pct_Económico,count_Medio,pct_Medio,count_Premium,pct_Premium,small_group,empty_group
+Ciutat Vella,Entire home/apt,1405,644,45.83629893238434,373,26.548042704626333,388,27.615658362989326,False,False
+Ciutat Vella,Hotel room,21,0,0.0,5,23.809523809523807,16,76.19047619047619,True,False
+Ciutat Vella,Private room,635,400,62.99212598425197,160,25.196850393700785,75,11.811023622047244,False,False
+Ciutat Vella,Shared room,4,3,75.0,1,25.0,0,0.0,True,False
+Eixample,Entire home/apt,3138,345,10.994263862332696,1079,34.384958572339066,1714,54.62077756532824,False,False
+Eixample,Hotel room,20,2,10.0,16,80.0,2,10.0,True,False
+Eixample,Private room,838,520,62.05250596658711,197,23.50835322195704,121,14.439140811455847,False,False
+Eixample,Shared room,48,47,97.91666666666666,0,0.0,1,2.083333333333333,False,False
+Gràcia,Entire home/apt,701,127,18.116975748930102,325,46.3623395149786,249,35.5206847360913,False,False
+Gràcia,Hotel room,11,0,0.0,6,54.54545454545454,5,45.45454545454545,True,False
+Gràcia,Private room,175,145,82.85714285714286,21,12.0,9,5.142857142857142,False,False
+Gràcia,Shared room,9,9,100.0,0,0.0,0,0.0,True,False
+Horta-Guinardó,Entire home/apt,149,52,34.899328859060404,66,44.29530201342282,31,20.80536912751678,False,False
+Horta-Guinardó,Hotel room,0,0,,0,,0,,False,True
+Horta-Guinardó,Private room,55,53,96.36363636363636,2,3.6363636363636362,0,0.0,False,False
+Horta-Guinardó,Shared room,0,0,,0,,0,,False,True
+Les Corts,Entire home/apt,159,32,20.125786163522015,80,50.314465408805034,47,29.559748427672954,False,False
+Les Corts,Hotel room,0,0,,0,,0,,False,True
+Les Corts,Private room,48,30,62.5,15,31.25,3,6.25,False,False
+Les Corts,Shared room,1,1,100.0,0,0.0,0,0.0,True,False
+Nou Barris,Entire home/apt,34,16,47.05882352941176,14,41.17647058823529,4,11.76470588235294,False,False
+Nou Barris,Hotel room,0,0,,0,,0,,False,True
+Nou Barris,Private room,29,29,100.0,0,0.0,0,0.0,True,False
+Nou Barris,Shared room,0,0,,0,,0,,False,True
+Sant Andreu,Entire home/apt,66,33,50.0,28,42.42424242424242,5,7.575757575757576,False,False
+Sant Andreu,Hotel room,0,0,,0,,0,,False,True
+Sant Andreu,Private room,55,49,89.0909090909091,3,5.454545454545454,3,5.454545454545454,False,False
+Sant Andreu,Shared room,3,3,100.0,0,0.0,0,0.0,True,False
+Sant Martí,Entire home/apt,744,156,20.967741935483872,307,41.263440860215056,281,37.76881720430107,False,False
+Sant Martí,Hotel room,3,0,0.0,1,33.33333333333333,2,66.66666666666666,True,False
+Sant Martí,Private room,152,111,73.02631578947368,28,18.421052631578945,13,8.552631578947368,False,False
+Sant Martí,Shared room,15,12,80.0,0,0.0,3,20.0,True,False
+Sants-Montjuïc,Entire home/apt,772,137,17.746113989637305,394,51.03626943005182,241,31.21761658031088,False,False
+Sants-Montjuïc,Hotel room,3,0,0.0,2,66.66666666666666,1,33.33333333333333,True,False
+Sants-Montjuïc,Private room,181,141,77.90055248618785,23,12.70718232044199,17,9.392265193370166,False,False
+Sants-Montjuïc,Shared room,7,7,100.0,0,0.0,0,0.0,True,False
+Sarrià-Sant Gervasi,Entire home/apt,359,61,16.991643454038996,173,48.18941504178273,125,34.81894150417828,False,False
+Sarrià-Sant Gervasi,Hotel room,0,0,,0,,0,,False,True
+Sarrià-Sant Gervasi,Private room,245,198,80.81632653061224,40,16.3265306122449,7,2.857142857142857,False,False
+Sarrià-Sant Gervasi,Shared room,3,3,100.0,0,0.0,0,0.0,True,False
