@@ -12,15 +12,16 @@
     "reg_alpha": 3.2870454921742165,
     "reg_lambda": 21.189223459332542
   },
+  "candidate_csv_params_match": true,
   "train_rows": 10088,
   "thresholds": {
     "lower": 122.0,
     "upper": 249.72333333333327
   },
   "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
-  "code_commit": "66c7a4046fbfc7ed44ff041086687786d8f000c6",
+  "code_commit": "7280f514e62bff6e446672fc2974976d28c0accd",
   "python": "3.14.7",
-  "versions": {
+  "versions_source": {
     "pandas": "3.1.1",
     "numpy": "2.5.4",
     "scipy": "1.18.1",
@@ -28,5 +29,13 @@
     "xgboost": "3.4.1",
     "optuna": "5.0.0",
     "threadpoolctl": "3.8.0"
+  },
+  "versions_installed": {
+    "pandas": "3.1.0",
+    "numpy": "2.5.4",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "optuna": "5.0.0",
+    "threadpoolctl": "3.7.0"
   }
 }

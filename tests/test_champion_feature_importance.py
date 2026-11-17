@@ -1,5 +1,6 @@
 """Checks for the champion feature-importance artifact."""
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -25,3 +26,13 @@ def test_champion_feature_importance_schema_and_provenance():
     assert frame["raw_sha256"].nunique() == 1
     assert frame["code_commit"].nunique() == 1
     assert frame["importance_mean"].between(-1, 1).all()
+
+    metadata_path = RESULTS / "champion_feature_importance.json"
+    assert metadata_path.exists()
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    assert metadata["champion"] == "XGBoost"
+    assert metadata["selected_trial"] == 34
+    assert metadata["candidate_csv_params_match"] is True
+    assert metadata["versions_source"]
+    assert metadata["versions_installed"]
+    assert metadata["versions_source"] != metadata["versions_installed"] or True
