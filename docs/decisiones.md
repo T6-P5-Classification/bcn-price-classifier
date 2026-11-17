@@ -766,9 +766,11 @@ Ejecutada una vez el 17/11/2026 con XGBoost ajustado en todo train
 
 Por clase en test: Económico F1 0,869, Medio 0,669, Premium 0,758. La
 confusión más frecuente es Medio ↔ Premium (180 anuncios reales Medio
-predichos Premium y 195 reales Premium predichos Medio). El resultado en test
-es coherente con la validación cruzada: no hay señales de sobreajuste a la
-selección. Es una única partición aleatoria de un snapshot; se mantiene la
-exposición histórica declarada. Tras ver el resultado no se cambia el modelo,
-las variables ni los hiperparámetros.
+predichos Premium y 195 reales Premium predichos Medio).
 
+En esta partición de test, el F1 macro observado (0,7651) es cercano al F1
+macro medio de validación (0,7631). Es un resultado compatible con el
+rendimiento estimado durante la selección, pero no demuestra ausencia de
+sobreajuste ni rendimiento futuro. Se mantienen las limitaciones del reparto
+aleatorio, el único snapshot y la exposición histórica del test. Tras ver el
+resultado no se cambia el modelo, las variables ni los hiperparámetros.
