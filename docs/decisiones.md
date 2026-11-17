@@ -945,3 +945,52 @@ credenciales iría en un `.env` fuera de Git.
 alcanza `mongo:27017`, MongoDB sin puertos publicados, y una predicción con
 respuesta sigue guardada tras `docker compose down` y `up`. Tests estáticos
 en `tests/test_docker_compose.py`.
+
+## Data drift: snapshot de junio frente a train (#36)
+
+**Qué se decidió:** `src/drift.py` comprueba si los anuncios de otro snapshot
+se parecen a los que aprendió el modelo. **Referencia:** las filas de
+**train** del snapshot de septiembre (las de test se descartan). **Datos
+nuevos:** el snapshot preparado con la misma limpieza y las 23
+`MODEL_FEATURES`; si falta alguna variable, se detiene (cambio de esquema).
+No usa precios ni predicciones: avisa antes de que llegue feedback.
+
+| Paso | Cómo |
+|---|---|
+| Medida | **PSI** por variable: compara el % de anuncios por intervalo. Numéricas: deciles de train. Categóricas: una categoría por intervalo, más «categoría nueva» (no vista en train). Los vacíos tienen su propio intervalo. |
+| Lectura | < 0,10 estable; 0,10–0,25 moderado; ≥ 0,25 alto. Son umbrales habituales, no un test estadístico. |
+| Alerta | **ALERTA** si una variable es «alto»; **AVISO** si una de las 3 más importantes del champion (#16: `minimum_nights`, `accommodates`, `latitude`) es «moderado». |
+| Detalle | También se calcula el PSI **sin vacíos**: separa si cambian los valores o solo con qué frecuencia el campo está vacío. |
+
+**Resultado (junio 2026 = 24/06, 13.355 anuncios con precio, frente a
+10.088 de train):** 21 de 23 variables estables (PSI ≤ 0,012). Dos alertas:
+
+| Variable | PSI | PSI sin vacíos | Vacíos train → junio |
+|---|---:|---:|---:|
+| `minimum_nights` (clave) | 1,08 | 0,00 | 15 % → 0 % |
+| `bedrooms` | 0,90 | 0,03 | 0 % → 12 % |
+
+**Lectura:** los **valores** apenas cambian; lo que cambia es **qué campos
+vienen vacíos**. Ya ocurre en el raw: en septiembre faltan `minimum_nights`
+(13 %) y nunca `bedrooms`; en junio, al revés (17 % sin `bedrooms`, la
+mayoría habitaciones privadas, y ningún 0). Parece un cambio en cómo Inside
+Airbnb publica esos campos, no en los alojamientos; **la causa no está
+verificada**. No afecta a la app (el formulario siempre rellena las dos
+variables), pero sí a un reentrenamiento con otro snapshot (#24, #34): antes
+hay que revisar cómo se imputan esos vacíos. Es el tipo de cambio que esta
+comprobación debe detectar.
+
+**Validación:** `tests/test_drift.py` con datos sintéticos: misma población
+sin alertas, desplazamiento numérico, cambio de proporciones, categoría nueva,
+vacíos separados de valores, intervalos vacíos, umbrales, aviso solo en
+variables clave y esquema incompleto. Resultado guardado en
+`docs/results/drift_2026-06-24.csv` y `.json` (con el sha256 de ambos raw).
+
+**Límites:**
+- Junio es **anterior** a train: se usa para probar el mecanismo; con el
+  próximo snapshot se ejecuta el mismo comando.
+- Muchos anuncios están en los dos snapshots: las muestras no son
+  independientes y el cambio puede parecer menor.
+- El PSI no dice si el modelo acierta menos; eso exige precios reales (#25).
+- Con muestras pequeñas (p. ej. las primeras predicciones de la app) el PSI
+  sale alto por azar: hace falta un volumen razonable antes de leerlo.

@@ -135,6 +135,19 @@ Cada predicción y, si el usuario lo indica, su precio real por noche se
 guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
 reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
 
+### Data drift (#36)
+
+Compara las 23 variables de un snapshot nuevo de Inside Airbnb con las filas
+de **train** con las que se entrenó el modelo (PSI por variable; no usa
+precios ni test):
+
+```bash
+python -m src.drift data/raw/listings_2026-06-24.csv.gz
+```
+
+Resultado en `docs/results/drift_<fecha>.csv` y `.json`. Resultados y
+lectura en [`docs/decisiones.md`](docs/decisiones.md#data-drift-snapshot-de-junio-frente-a-train-36).
+
 ### Docker (#29)
 
 El modelo no está en Git: se genera antes de construir la imagen.

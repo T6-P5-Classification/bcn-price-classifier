@@ -1,0 +1,31 @@
+{
+  "issue": 36,
+  "reference": {
+    "file": "data/raw/listings.csv.gz",
+    "rows": "train",
+    "n": 10088,
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e"
+  },
+  "current": {
+    "file": "listings_2026-06-24.csv.gz",
+    "n": 13355,
+    "raw_sha256": "aefc9848413a265973255a3ba6e43b650b645f9ee558a2474912e9c9d06a77fa"
+  },
+  "method": {
+    "metric": "PSI",
+    "numeric_bins": "10 reference quantiles",
+    "epsilon": 0.0001,
+    "moderate": 0.1,
+    "large": 0.25
+  },
+  "key_features": [
+    "minimum_nights",
+    "accommodates",
+    "latitude"
+  ],
+  "alerts": [
+    "ALERTA: minimum_nights, variable clave del modelo, cambia (PSI 1.08; cambian sobre todo los vacíos (15% -> 0%), no los valores (PSI sin vacíos 0.00))",
+    "ALERTA: bedrooms cambia (PSI 0.90; cambian sobre todo los vacíos (0% -> 12%), no los valores (PSI sin vacíos 0.03))"
+  ],
+  "created_at": "2026-11-17T21:38:53+00:00"
+}
