@@ -751,3 +751,18 @@ Medio. No se demuestra su causa, significación de diferencias pequeñas ni
 se elige champion. No se guardan predicciones individuales ni se sustituye
 la tabla de métricas original. RF sigue identificado como reconstrucción
 local no idéntica al origen; los otros tres reproducen sus métricas OOF.
+
+
+## Presentación técnica del proyecto (#40)
+
+La presentación usa Google Slides y mantiene un estilo sencillo con 16
+diapositivas, poco texto visible y notas explicativas. Los tiempos del guion
+suman 20 minutos orientativos y requieren ensayo. Se enlaza desde README y
+se conserva el guion con fuentes en `docs/presentacion_tecnica.md`.
+
+Las cifras proceden de los artefactos agregados integrados en la base
+`960e9c6`. Se distinguen selección de XGBoost, empate práctico con LightGBM,
+resultados CV/OOF y evaluación final todavía sin registro. La app usa un
+modelo provisional. No se ejecuta test ni se atribuye una reproducción
+completa de los modelos al preparar las diapositivas. El deck sigue sujeto
+a revisión del equipo y a actualizarse cuando se registren nuevas entregas.

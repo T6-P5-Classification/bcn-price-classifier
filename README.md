@@ -140,3 +140,10 @@ models/      Modelos entrenados
 tests/       Tests con pytest
 docs/        Decisiones e informe técnico
 ```
+
+## Presentación técnica
+
+[Diapositivas del proyecto en Google Slides](https://docs.google.com/presentation/d/1zSvjH1LRa9Q_JK8cMZpOBaoV3WFl84wj65ChRRJQVkU/edit).
+Presentación de unos 20 minutos, con poco texto y notas del orador.
+[Guion, tiempos y fuentes](docs/presentacion_tecnica.md). El acceso al deck
+se gestiona en Google Drive; el enlace no lo convierte en público.
