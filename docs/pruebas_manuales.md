@@ -169,6 +169,61 @@ Archivo: `notebooks/02_eda_classes.ipynb`.
    del código existente. El éxito del notebook y el de los tests son hechos
    separados; no se han evaluado métricas predictivas en esta issue.
 
+## Issue 11 — Mapa por distritos y análisis por room_type
+
+Rama de entrega: `feat/11-district-room-type-eda`, desde `dev` en `75f3491`.
+Notebook: `notebooks/03_eda_map.ipynb`. Detalle y resultados en
+[`eda_distritos_room_type.md`](eda_distritos_room_type.md).
+
+1. **Requisitos, solo lectura:** comprobar rama, entorno del proyecto y
+   archivos `data/raw/listings.csv.gz` y `data/raw/neighbourhoods.geojson`
+   según README. Las rutas de datos están ignoradas por Git. Si falta un
+   archivo, seguir su descarga; no sustituir ciudad o versión sin declararlo.
+2. **Tests:** desde la raíz, ejecutar
+   `.venv/bin/python -m pytest -q tests/test_eda_map.py tests/test_eda_map_results.py`
+   y después `.venv/bin/python -m pytest -q`. Los primeros usan grupos y
+   polígonos sintéticos y resultados agregados, sin los archivos raw. Pueden
+   crear cachés locales; no publican nada ni modifican registros remotos.
+   Esperado: todos correctos. No son una evaluación de modelos.
+3. **Leer la entrega:** abrir el notebook y sus salidas guardadas sin
+   ejecutarlo. Esperado: todas las celdas de código con número de ejecución,
+   ninguna salida de error y cuatro figuras legibles. En los mapas son
+   categorías REALES, no predicciones; el color es porcentaje dentro de
+   distrito, no número de anuncios ni precio en euros. La escala es común
+   0–100 %. Los números de distrito remiten a la leyenda.
+4. **Comprobar cobertura y totales:** para el snapshot local, 10.088 anuncios,
+   10 distritos, 67 barrios de train y cuatro modalidades. Todos los barrios
+   de train tienen geometría. El GeoJSON tiene 75 objetos y 73 nombres, no
+   75 barrios distintos. Una repetición geométrica no debe aumentar n. Los
+   tres CSV agregados deben conservar el total y las cantidades por clase.
+5. **Leer cruces:** revisar porcentajes y n. Las 40 combinaciones contienen
+   siete vacías y 13 observadas con n < 30. En vacías, porcentajes ausentes y
+   gris con `n=0`, no 0 %; † identifica grupos pequeños, no significación.
+6. **Reproducción opcional:** antes de repetir, conservar copia del notebook
+   y de `docs/results/eda11_*` si se quiere preservar la ejecución anterior.
+   Ejecutar `.venv/bin/python tools/run_eda_map_notebook.py`. Lee CSV y
+   GeoJSON, consume CPU y reemplaza esas cinco salidas. No modifica los raw,
+   no consulta servicios externos, no entrena modelos ni analiza test. No
+   ejecutar simultáneamente desde el editor.
+7. **Procedencia y límites:** `eda11_metadata.json` debe indicar train,
+   `test_inspected=false`, `model_trained=false`, `geometry_joined_to_model=false`
+   y 23 entradas; revisar firmas y versiones. No se exige que otro snapshot
+   dé las mismas cifras. Cumplir los controles no demuestra causas ni
+   rendimiento futuro con usuarios reales.
+8. **Ante fallo:** detenerse ante datos ausentes, nombres sin correspondencia,
+   diferencias de distrito o errores de celda. Anotar el mensaje sin publicar
+   filas personales. No borrar grupos ni alterar datos para lograr el total
+   esperado. Revisar entorno, snapshot y contrato antes de repetir.
+
+Estos pasos no autorizan commit, publicación, aprobación, cambio de tarjeta
+ni merge. La verificación visual y la ejecución real se registran por
+separado de los tests sintéticos.
+
+Comprobado en esta entrega: ocho celdas de código ejecutadas sin errores,
+cuatro figuras revisadas visualmente, 17 tests propios y 84 tests totales
+correctos. El lector común de comparación de modelos continúa aceptando
+sus cuatro CSV y siete filas, sin incorporar los agregados descriptivos de EDA.
+
 ## Issue 20 — XGBoost con 40 pruebas de Optuna
 
 1. **Preparación:** desde la raíz del proyecto, usar `feat/20-xgboost` hasta
