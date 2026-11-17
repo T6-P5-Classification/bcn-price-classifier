@@ -664,3 +664,38 @@ detiene si ese archivo ya existe. Después no se cambian modelo, variables ni
 hiperparámetros. Se declara la exposición histórica del test por la baseline
 de #18, que no guió esta elección. Antes de evaluar se comprobó, solo con
 train, que el Pipeline reproduce la CV registrada (0,763119).
+## Análisis de errores vecinos y extremos (#17): alcance y discrepancia documentada
+
+El alcance confirmado analiza las cuatro configuraciones seleccionadas, sin
+repetir Optuna, consultar test, cambiar variables ni elegir champion. Se añade
+una sección separada en `08_comparison.ipynb`, conservando el lector existente.
+Se mantienen las cinco particiones comunes y el Pipeline completo en cada
+ajuste. Se distinguen las seis direcciones real/predicha, porcentajes sobre
+todos los anuncios, sobre solo errores y dentro de cada categoría real.
+No se atribuyen costes económicos ni se incluyen subgrupos o límites de precio.
+
+La reconstrucción debe contrastarse con las métricas OOF de origen. La primera
+ejecución se ha detenido con RF: accuracy local 0,7595162569389373 frente a
+0,7588223632038065 guardada, siete aciertos de diferencia entre 10.088 anuncios.
+Se verificaron datos, particiones, parámetros y coincidencia del código de RF
+y preparación con su commit declarado; la causa aún no está verificada.
+No se alteran el resultado de origen, el modelo o la tolerancia para forzar
+coincidencias. Tras revisar procedencia y obtener la misma diferencia con las
+funciones originales de RF, el usuario autoriza distinguir métricas de origen
+y reconstrucción local. Solo RF tiene excepción explícita a la detención:
+se conservan valores, diferencias y flags de coincidencia, sin presentar una
+reproducción exacta. La causa sigue sin verificarse; no se atribuye al entorno
+por observar una versión de Python distinta. El lector original conserva
+sus métricas de selección. No se corrige otra entrega desde esta issue.
+Evidencia, requisitos y límites: [análisis de errores](analisis_errores.md).
+
+Diagnóstico local completado: 2.727 errores en regresión logística, 2.426 en
+RF local, 2.391 en XGBoost y 2.393 en LightGBM, cada uno sobre los mismos
+10.088 anuncios de train. De ellos son extremos 126, 98, 102 y 98,
+respectivamente. Los demás son vecinos; no se invierten real y predicho ni
+se mezclan porcentajes sobre todos los anuncios con porcentajes sobre solo
+errores. La confusión más frecuente en los cuatro es real Premium/predicho
+Medio. No se demuestra su causa, significación de diferencias pequeñas ni
+se elige champion. No se guardan predicciones individuales ni se sustituye
+la tabla de métricas original. RF sigue identificado como reconstrucción
+local no idéntica al origen; los otros tres reproducen sus métricas OOF.
