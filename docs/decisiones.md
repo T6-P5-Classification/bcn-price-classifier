@@ -602,3 +602,40 @@ que el modelo no sobreajuste; otra prueba con gap
 mantiene la regla común sin cambiarla tras ver los resultados. Seleccionar y
 calcular OOF en los mismos folds no es validación anidada ni una evaluación
 final.
+
+## App Streamlit (#15)
+
+La app (`app/app.py`) pide al anfitrión las 23 variables de `MODEL_FEATURES`
+y muestra el segmento de precio anunciado estimado. La lógica del formulario
+está en `app/app_logic.py` para poder probarla sin interfaz.
+
+- **Nada se deduce si el usuario puede declararlo.** El tipo de alojamiento
+  (`property_type`) y lo que se alquila (`room_type`) se preguntan por
+  separado: en train el mismo tipo puede alquilarse entero o por
+  habitaciones (p. ej. «Room in hotel»: 372 habitaciones privadas, 15 de
+  hotel y 7 enteros).
+- **Baño:** se pregunta con tres opciones que reproducen los indicadores de
+  `src/cleaning.py` sobre `bathrooms_text`: propio del alojamiento entero
+  (0, 0), privado (0, 1) o compartido (1, 0). Las combinaciones sin ejemplos
+  en train (alojamiento entero con baño privado/compartido, habitación con
+  «propio», habitación compartida con baño privado) se rechazan con un
+  mensaje; no se corrigen en silencio.
+- **Sin imputación desde el formulario:** `build_row()` rechaza variables
+  ausentes o vacías (NaN), para que el Pipeline no las rellene sin avisar.
+- **Barrio:** nombre oficial y distrito; latitud y longitud son la mediana
+  de train del barrio (el formulario no pide la dirección exacta).
+- **Etiquetas del modelo:** el artefacto guarda `class_labels`, que traduce
+  las clases del modelo al nombre mostrado. Sirve tanto para modelos con
+  etiquetas de texto (regresión logística) como numéricas 0/1/2 (XGBoost con
+  `LABEL_TO_INT`), así que cambiar al champion no rompe la app.
+- **Aviso en pantalla:** el modelo actual es provisional (regresión
+  logística). El resultado estima un segmento de precio anunciado; no
+  recomienda un precio ni garantiza la clasificación. Se muestra la
+  «probabilidad estimada por el modelo», no una «confianza».
+- **Tests (`tests/test_app.py`):** modelo sintético, sin snapshot. Comprueban
+  carga y predicción (AppTest), correspondencia formulario → variables,
+  reglas de habitación y baño, rechazo de valores vacíos y lectura de
+  etiquetas de texto y numéricas. No miden la calidad de las predicciones.
+
+**Límites:** `models/app_model.joblib` se genera localmente y no se sube a
+Git; la integración del champion y el despliegue van en #23 y #29/#33.

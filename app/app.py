@@ -3,13 +3,22 @@
 Run from the repo root:  streamlit run app/app.py
 """
 
+import os
 from pathlib import Path
 
 import joblib
 import pandas as pd
 import streamlit as st
 
-MODEL_PATH = Path(__file__).resolve().parents[1] / "models" / "app_model.joblib"
+from app_logic import BATHROOM_OPTIONS, build_row, form_to_values, predict
+
+# APP_MODEL_PATH lets the tests use a small synthetic model.
+MODEL_PATH = Path(
+    os.environ.get(
+        "APP_MODEL_PATH",
+        Path(__file__).resolve().parents[1] / "models" / "app_model.joblib",
+    )
+)
 CLASSES = ("Económico", "Medio", "Premium")
 
 # The 10 amenities of MODEL_FEATURES: simple yes/no questions a host can answer.
@@ -45,6 +54,13 @@ PROPERTY_TYPES_ES = {
     "Shared room in hotel": "Habitación compartida en un hotel",
 }
 
+ROOM_TYPES_ES = {
+    "Entire home/apt": "Alojamiento entero",
+    "Private room": "Habitación privada",
+    "Hotel room": "Habitación de hotel",
+    "Shared room": "Habitación compartida",
+}
+
 CLASS_STYLE = {
     # "color": soft pastel for borders, backgrounds and bars.
     # "text": a deeper tone of the same colour so the class name stays readable.
@@ -55,29 +71,11 @@ CLASS_STYLE = {
 
 
 @st.cache_resource
-def load_artifact():
-    return joblib.load(MODEL_PATH)
+def load_artifact(path: str):
+    return joblib.load(path)
 
 
-def build_row(artifact: dict, values: dict) -> pd.DataFrame:
-    """One-row DataFrame with every model column.
-
-    The form must fill all 23 model variables: a missing one would be imputed
-    silently by the pipeline (worse predictions), so it raises an error instead.
-    """
-    missing = set(artifact["columns"]) - set(values)
-    if missing:
-        raise ValueError(f"Form is missing model variables: {sorted(missing)}")
-    row = {column: values[column] for column in artifact["columns"]}
-    df = pd.DataFrame([row], columns=artifact["columns"])
-    numeric = artifact["numeric_columns"]
-    df[numeric] = df[numeric].astype(float)
-    other = [c for c in df.columns if c not in numeric]
-    df[other] = df[other].astype(object)
-    return df
-
-
-def result_card(prediction: str, price_range: str, confidence: float) -> str:
+def result_card(prediction: str, price_range: str, probability: float) -> str:
     style = CLASS_STYLE[prediction]
     return f"""
     <div style="border:2px solid {style['color']}; border-radius:16px;
@@ -88,7 +86,7 @@ def result_card(prediction: str, price_range: str, confidence: float) -> str:
             {prediction}
         </div>
         <div style="font-size:1.1rem; margin-top:4px;">{price_range}</div>
-        <div style="opacity:0.7; margin-top:8px;">Confianza del modelo: {confidence:.0%}</div>
+        <div style="opacity:0.7; margin-top:8px;">Probabilidad estimada por el modelo: {probability:.0%}</div>
     </div>
     """
 
@@ -120,7 +118,7 @@ if not MODEL_PATH.exists():
     st.error("No se encuentra el modelo. Ejecuta primero: `python -m src.train_app_model`")
     st.stop()
 
-artifact = load_artifact()
+artifact = load_artifact(str(MODEL_PATH))
 low, high = artifact["thresholds"]["lower"], artifact["thresholds"]["upper"]
 ranges = {
     "Económico": f"hasta {low:.0f} €/noche",
@@ -150,6 +148,11 @@ with form_col:
             artifact["property_types"],
             format_func=lambda value: PROPERTY_TYPES_ES.get(value, value),
         )
+        room_type = st.selectbox(
+            "Qué se alquila",
+            artifact["room_types"],
+            format_func=lambda value: ROOM_TYPES_ES.get(value, value),
+        )
 
         st.subheader("🛏️ Capacidad", anchor=False)
         c1, c2 = st.columns(2)
@@ -157,9 +160,11 @@ with form_col:
         bedrooms = c2.number_input("Dormitorios", 0, 10, 1, help="0 si es un estudio.")
         beds = c1.number_input("Camas", 1, 20, 1)
         bathrooms = c2.number_input("Baños", 0.0, 10.0, 1.0, step=0.5, format="%.1f")
-        shared_bath = st.checkbox(
-            "Baño compartido con otras personas",
-            help="Solo para habitaciones. En un alojamiento entero no se aplica.",
+        bathroom = st.radio(
+            "Tipo de baño",
+            list(BATHROOM_OPTIONS),
+            format_func=BATHROOM_OPTIONS.get,
+            horizontal=True,
         )
         min_nights = st.number_input("Noches mínimas", 1, 365, 2)
 
@@ -178,17 +183,8 @@ with result_col:
     if not submitted:
         st.info("Rellena el formulario y pulsa **Predecir** para ver el rango de precio.")
     else:
-        coords = artifact["hood_coords"][hood]
-        room_type = artifact["property_to_room"][property_type]
-        is_room = room_type != "Entire home/apt"
-        # Same pattern as the training data: a shared room always has a shared
-        # bathroom, and "private bathroom" only applies to rooms.
-        is_shared = room_type == "Shared room" or (is_room and shared_bath)
-        values = {
-            "neighbourhood_cleansed": hood,
-            "neighbourhood_group_cleansed": artifact["hood_to_district"][hood],
-            "latitude": coords["latitude"],
-            "longitude": coords["longitude"],
+        form = {
+            "hood": hood,
             "property_type": property_type,
             "room_type": room_type,
             "accommodates": accommodates,
@@ -196,15 +192,16 @@ with result_col:
             "beds": beds,
             "minimum_nights": min_nights,
             "bathrooms_count": bathrooms,
-            "is_shared_bathroom": int(is_shared),
-            "is_private_bathroom": int(is_room and not is_shared),
-            **{key: int(value) for key, value in flags.items()},
+            "bathroom": bathroom,
+            "amenities": flags,
         }
+        try:
+            values = form_to_values(artifact, form)
+        except ValueError as error:
+            st.error(str(error))
+            st.stop()
 
-        row = build_row(artifact, values)
-        model = artifact["model"]
-        prediction = model.predict(row)[0]
-        probabilities = pd.Series(model.predict_proba(row)[0], index=model.classes_)
+        prediction, probabilities = predict(artifact, build_row(artifact, values))
 
         st.markdown(
             result_card(prediction, ranges[prediction], probabilities[prediction]),
@@ -212,6 +209,13 @@ with result_col:
         )
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)
+        st.warning(
+            f"Modelo provisional para demostración ({artifact['model_name']}). "
+            "El resultado estima un segmento de precio anunciado; no recomienda "
+            "un precio ni garantiza una clasificación correcta. La probabilidad "
+            "es la del modelo, no una garantía de acierto.",
+            icon="⚠️",
+        )
 
 st.divider()
 st.caption(
