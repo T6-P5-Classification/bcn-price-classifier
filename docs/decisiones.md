@@ -921,3 +921,29 @@ es permanente, por lo que para conservar datos hace falta MongoDB.
 donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
 (p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
 arrancar).
+
+## Tests de métricas mínimas (#32)
+
+`src/model_quality.py` define los mínimos y `quality_problems()`, que devuelve
+los que no se cumplen; `tests/test_metrics.py` los comprueba sobre los
+resultados guardados (sin datos raw, sin reentrenar y sin volver a mirar el
+test reservado).
+
+| Métrica | Mínimo | Champion (CV / test) |
+|---|---|---|
+| F1 macro | ≥ 0,70 | 0,763 / 0,765 |
+| F1 de cada clase | ≥ 0,60 | Medio 0,66 / 0,67 (la más baja) |
+| Errores extremos (Económico ↔ Premium) | ≤ 3 % | 1,0 % / 1,2 % |
+| Gap train − validación | < 0,05 | 0,048 / — |
+| Margen sobre Dummy (F1 macro) | ≥ 0,30 | 0,60 / — |
+
+Se comprueban el champion en validación cruzada y en la evaluación única de
+test, que todos los modelos comparados superan el mínimo de F1, el gap y el
+margen sobre Dummy, y, si existe, el artefacto de la app.
+
+**Qué son estos mínimos:** una **alarma de regresión**, no un criterio de
+selección (el champion se eligió en #22 con la regla acordada). Se fijaron
+**después** de ver los resultados, algo por debajo de ellos, para detectar un
+modelo claramente peor (p. ej. tras reentrenar en #34, que puede reutilizar
+`quality_problems()` antes de sustituir el modelo) sin fallar por pequeñas
+diferencias aleatorias. El gap mantiene el límite acordado de 0,05.
