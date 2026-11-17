@@ -518,6 +518,28 @@ cambia el notebook compartido de selección del champion ni utiliza test.
 sintético y objetos de test que fallan si se inspeccionan. Comprueba que los
 informes y las matrices cubren train y que no se exportan columnas de
 resultados `test_*`. La ejecución completa verifica los artefactos reales.
+
+## Importancia de variables (#16)
+
+La importancia se calcula solo con train y validación cruzada, nunca con test.
+Se usa permutación sobre cada fold de validación con el Pipeline completo y
+F1 macro como métrica, agregando la media y desviación entre folds. El
+resultado es una tabla por modelo con una fila por variable de
+`MODEL_FEATURES`, más metadatos de snapshot, commit, hash y CV.
+
+El método es model-agnostic y permite comparar importancias entre candidatos,
+pero no establece causalidad: una variable puede ser sustituto de otra o
+depender del preprocesamiento. La permutación es costosa y su estabilidad
+depende de `n_repeats`; importancias negativas o cercanas a cero indican
+variables con aportación nula o inestable en ese modelo.
+
+La importancia del champion ya se ha generado para el XGBoost elegido en #22:
+`docs/results/champion_feature_importance.csv` (con una línea inicial de
+comentario que identifica el modelo). Se reutiliza el mismo protocolo y no se
+incluyen filas del
+dataset ni predicciones individuales; la tabla solo contiene métricas
+agregadas y metadatos. `src/feature_importance.py` implementa el cálculo y
+`tests/test_feature_importance.py` cubre su esquema y reproducibilidad.
 `logreg_details.json` registra informes, matrices, folds, umbrales, versiones
 y hashes; `logreg_trials.csv` registra la búsqueda. No se guardan filas ni
 predicciones individuales.
