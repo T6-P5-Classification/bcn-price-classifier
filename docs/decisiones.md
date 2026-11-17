@@ -602,3 +602,33 @@ que el modelo no sobreajuste; otra prueba con gap
 mantiene la regla común sin cambiarla tras ver los resultados. Seleccionar y
 calcular OOF en los mismos folds no es validación anidada ni una evaluación
 final.
+
+## EDA geográfico y modalidad alquilada (#11)
+
+El alcance confirmado utiliza solo entrenamiento de la carga común y las
+categorías reales según precio/umbrales. Se realizan tres mapas de porcentaje
+de categoría dentro de distrito, barras por distrito y `room_type`, y un
+desglose distrito × modalidad con tamaños de muestra. No hay predicciones,
+entrenamiento, cambios en las 23 variables ni consulta del test reservado.
+
+El GeoJSON sirve solo para dibujar. Se comprueban nombres de barrio y
+coherencia de distrito sin unir geometría a las entradas del modelo. Sus
+polígonos de barrio se colorean con el porcentaje agregado del distrito,
+con escala común 0–100 %, sin presentarlo como estimación por barrio. La
+superficie del dibujo no mide número de anuncios. Las piezas repetidas de
+un barrio se dibujan sin multiplicar registros.
+
+Los porcentajes usan como denominador todos los anuncios del grupo indicado.
+Se muestran recuentos y n; grupos observados con n < 30 se señalan como
+pequeños mediante una convención descriptiva, no una prueba estadística.
+Combinaciones sin observaciones conservan porcentajes ausentes y se pintan
+grises, en lugar de confundirlas con 0 %.
+
+Comprobado en el archivo local: 10.088 anuncios de train, 10 distritos,
+67 barrios con correspondencia completa y cuatro modalidades. El GeoJSON
+contiene 75 objetos y 73 nombres únicos, seis sin observaciones de train.
+No se impone a entrenamiento la referencia previa de 68 barrios. Hay 40
+combinaciones distrito × modalidad: siete vacías y 13 observadas con n < 30.
+Son asociaciones descriptivas de este snapshot, no causas, rankings estables
+de zonas pequeñas ni calidad predictiva demostrada. Reproducción, resultados
+y límites: [EDA por distritos y room_type](eda_distritos_room_type.md).
