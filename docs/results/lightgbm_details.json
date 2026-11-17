@@ -1,0 +1,225 @@
+{
+  "issue": 21,
+  "model": "LightGBM",
+  "evaluation_set": "train_oof",
+  "test_evaluated": false,
+  "nested_cv": false,
+  "seed": 42,
+  "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+  "n_trials_budget": 40,
+  "n_trials_executed": 40,
+  "n_eligible_trials": 8,
+  "search_seconds": 222.518716,
+  "search_space": {
+    "n_estimators": {
+      "name": "IntDistribution",
+      "attributes": {
+        "log": false,
+        "step": 50,
+        "low": 100,
+        "high": 600
+      }
+    },
+    "learning_rate": {
+      "name": "FloatDistribution",
+      "attributes": {
+        "step": null,
+        "low": 0.01,
+        "high": 0.1,
+        "log": true
+      }
+    },
+    "num_leaves": {
+      "name": "IntDistribution",
+      "attributes": {
+        "log": false,
+        "step": 1,
+        "low": 8,
+        "high": 48
+      }
+    },
+    "max_depth": {
+      "name": "IntDistribution",
+      "attributes": {
+        "log": false,
+        "step": 1,
+        "low": 3,
+        "high": 8
+      }
+    },
+    "min_child_samples": {
+      "name": "IntDistribution",
+      "attributes": {
+        "log": false,
+        "step": 1,
+        "low": 20,
+        "high": 150
+      }
+    },
+    "subsample": {
+      "name": "FloatDistribution",
+      "attributes": {
+        "step": null,
+        "low": 0.6,
+        "high": 1.0,
+        "log": false
+      }
+    },
+    "colsample_bytree": {
+      "name": "FloatDistribution",
+      "attributes": {
+        "step": null,
+        "low": 0.5,
+        "high": 1.0,
+        "log": false
+      }
+    },
+    "reg_lambda": {
+      "name": "FloatDistribution",
+      "attributes": {
+        "step": null,
+        "low": 0.001,
+        "high": 30.0,
+        "log": true
+      }
+    }
+  },
+  "fixed_params": {
+    "subsample_freq": 1,
+    "random_state": 42,
+    "verbose": -1,
+    "n_jobs": 1
+  },
+  "selection_rule": "max mean validation macro F1 among trials with mean gap < 0.05 (gap = mean train F1 - mean validation F1)",
+  "selected_trial": 11,
+  "selected_params": {
+    "n_estimators": 150,
+    "learning_rate": 0.056922031759422606,
+    "num_leaves": 43,
+    "max_depth": 6,
+    "min_child_samples": 42,
+    "subsample": 0.6851781063212045,
+    "colsample_bytree": 0.611586992897352,
+    "reg_lambda": 2.910164393655262
+  },
+  "unconstrained_best_trial": 36,
+  "selected_cv": {
+    "cv_train_f1_macro": 0.8124526890945456,
+    "cv_validation_f1_macro": 0.762985284774897,
+    "cv_validation_std": 0.0017770473684439543,
+    "gap": 0.04946740431964858,
+    "folds": [
+      {
+        "fold": 1,
+        "f1_train": 0.813472808247821,
+        "f1_validation": 0.7616904701699987,
+        "fit_seconds": 0.36681699752807617,
+        "gap": 0.05178233807782229
+      },
+      {
+        "fold": 2,
+        "f1_train": 0.8107745184410292,
+        "f1_validation": 0.760282180790096,
+        "fit_seconds": 0.3674449920654297,
+        "gap": 0.050492337650933194
+      },
+      {
+        "fold": 3,
+        "f1_train": 0.8097015026377098,
+        "f1_validation": 0.7647169575245387,
+        "fit_seconds": 0.36917805671691895,
+        "gap": 0.04498454511317107
+      },
+      {
+        "fold": 4,
+        "f1_train": 0.8150600234719151,
+        "f1_validation": 0.7633311513455955,
+        "fit_seconds": 0.37128114700317383,
+        "gap": 0.0517288721263196
+      },
+      {
+        "fold": 5,
+        "f1_train": 0.8132545926742528,
+        "f1_validation": 0.7649056640442562,
+        "fit_seconds": 0.36939191818237305,
+        "gap": 0.048348928629996624
+      }
+    ],
+    "folds_with_gap_over_limit": 3
+  },
+  "selected_oof": {
+    "oof_accuracy": 0.762787470261697,
+    "oof_f1_macro": 0.7630155283797637,
+    "oof_extreme_error_rate": 0.00971451229183188,
+    "confusion_matrix": [
+      [
+        2965,
+        350,
+        51
+      ],
+      [
+        348,
+        2243,
+        768
+      ],
+      [
+        47,
+        829,
+        2487
+      ]
+    ],
+    "matrix_rows": "real price class",
+    "matrix_columns": "predicted class",
+    "label_order": [
+      "Económico",
+      "Medio",
+      "Premium"
+    ],
+    "classification_report": {
+      "Económico": {
+        "precision": 0.8824404761904762,
+        "recall": 0.8808674985145574,
+        "f1-score": 0.8816532857567648,
+        "support": 3366.0
+      },
+      "Medio": {
+        "precision": 0.6554646405610753,
+        "recall": 0.6677582613873176,
+        "f1-score": 0.6615543430172541,
+        "support": 3359.0
+      },
+      "Premium": {
+        "precision": 0.7522686025408348,
+        "recall": 0.7395182872435325,
+        "f1-score": 0.7458389563652722,
+        "support": 3363.0
+      },
+      "accuracy": 0.762787470261697,
+      "macro avg": {
+        "precision": 0.7633912397641288,
+        "recall": 0.7627146823818025,
+        "f1-score": 0.7630155283797637,
+        "support": 10088.0
+      },
+      "weighted avg": {
+        "precision": 0.7634694370387216,
+        "recall": 0.762787470261697,
+        "f1-score": 0.763091039681665,
+        "support": 10088.0
+      }
+    }
+  },
+  "provenance": {
+    "snapshot": "2026-09-17",
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "code_commit": "8feaee5f5cc7702979ae9b073e382833bf26e521",
+    "python": "3.12.10",
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scikit-learn": "1.9.1",
+      "lightgbm": "4.7.0",
+      "optuna": "5.0.0"
+    }
+  }
+}
