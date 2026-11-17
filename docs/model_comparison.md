@@ -2,9 +2,18 @@
 
 Desde la raíz, ejecutar `notebooks/08_comparison.ipynb` con su kernel del
 proyecto (el notebook admite raíz o `notebooks/` como directorio de trabajo).
-No entrena modelos ni evalúa test: lee automáticamente
+La sección del lector no entrena modelos ni evalúa test: lee automáticamente
 `docs/results/*_comparison.csv` y ordena por F1 macro medio de validación.
 Archivos como `*_trials.csv` no se incluyen.
+
+El notebook incluye después una sección separada de análisis de errores
+(#17). **Ejecutar todo sí repite 20 ajustes fuera de fold**, cinco por cada
+configuración ya seleccionada, sin Optuna ni test. Requiere el CSV raw local
+y las cuatro salidas de candidatos. No cambia el lector ni elige champion.
+Para ejecutar solo este notebook desde terminal, usar
+`python tools/run_error_analysis_notebook.py`; efectos y requisitos en
+[analisis_errores.md](analisis_errores.md). Conserva una copia de las salidas
+antes de repetir si necesitas preservar una ejecución anterior.
 
 Cada modelo puede aportar su propio archivo, por ejemplo
 `lightgbm_comparison.csv`, sin modificar el notebook. Los nombres de columnas

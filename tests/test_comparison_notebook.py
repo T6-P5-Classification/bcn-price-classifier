@@ -1,4 +1,7 @@
-"""The common notebook discovers compatible per-model CSVs without fitting."""
+"""The original CSV-reader section discovers compatible results without fitting.
+
+Later issue-17 OOF cells have separate tests and are not part of reader tests.
+"""
 from pathlib import Path
 import json
 
@@ -26,7 +29,9 @@ def run_comparison(root, monkeypatch):
     monkeypatch.chdir(root)
     namespace = {}
     for cell in json.loads(NOTEBOOK.read_text())["cells"]:
-        if cell["cell_type"] == "code":
+        # These tests isolate the CSV reader; issue 17's OOF computation has
+        # separate tests and needs all four candidates plus the local dataset.
+        if cell["cell_type"] == "code" and "issue17" not in cell.get("metadata", {}).get("tags", []):
             exec(compile("".join(cell["source"]), "08_comparison.ipynb", "exec"), namespace)
     return namespace["results"]
 
