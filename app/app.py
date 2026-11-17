@@ -113,10 +113,15 @@ if not MODEL_PATH.exists():
 
 artifact = load_artifact(str(MODEL_PATH))
 low, high = artifact["thresholds"]["lower"], artifact["thresholds"]["upper"]
+def euros(value: float) -> str:
+    return f"{value:.2f}".replace(".", ",") + " €"
+
+
+# Same rule as the target: Económico <= lower < Medio <= upper < Premium.
 ranges = {
-    "Económico": f"hasta {low:.0f} €/noche",
-    "Medio": f"entre {low:.0f} y {high:.0f} €/noche",
-    "Premium": f"más de {high:.0f} €/noche",
+    "Económico": f"hasta {euros(low)}/noche",
+    "Medio": f"más de {euros(low)} y hasta {euros(high)}/noche",
+    "Premium": f"más de {euros(high)}/noche",
 }
 
 st.title("🏠 ¿En qué rango de precio está tu alojamiento en Barcelona?", anchor=False)
@@ -199,6 +204,10 @@ with result_col:
         st.markdown(
             result_card(prediction, ranges[prediction], probabilities[prediction]),
             unsafe_allow_html=True,
+        )
+        st.caption(
+            "Límites de las categorías calculados con los precios de "
+            "entrenamiento y redondeados al céntimo."
         )
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)

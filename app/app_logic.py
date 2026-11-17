@@ -33,8 +33,11 @@ BATHROOM_FLAGS = {"own": (0, 0), "private": (0, 1), "shared": (1, 0)}
 def bathroom_flags(room_type: str, bathroom: str) -> tuple[int, int]:
     """Return (is_shared_bathroom, is_private_bathroom) or explain the conflict.
 
-    In train every entire home has its own bathroom (0, 0) and every shared
-    room a shared bathroom (1, 0); other combinations have no examples.
+    In train every entire home has (0, 0) and every shared room (1, 0). For
+    private and hotel rooms, (0, 0) also exists (216 and 6 listings): it means
+    Airbnb's text said neither "private" nor "shared", not that the bathroom
+    belongs to an entire home. The form asks the user to clarify instead of
+    offering an "unspecified" answer, so for rooms "own" is not accepted.
     """
     if bathroom not in BATHROOM_FLAGS:
         raise ValueError(f"Unknown bathroom option: {bathroom!r}")

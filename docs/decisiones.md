@@ -650,10 +650,18 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   frecuente.
 - **Baño:** se pregunta con tres opciones que reproducen los indicadores de
   `src/cleaning.py` sobre `bathrooms_text`: propio del alojamiento entero
-  (0, 0), privado (0, 1) o compartido (1, 0). Las combinaciones sin ejemplos
-  en train (alojamiento entero con baño privado/compartido, habitación con
-  «propio», habitación compartida con baño privado) se rechazan con un
-  mensaje; no se corrigen en silencio.
+  (0, 0), privado (0, 1) o compartido (1, 0). En train, todos los
+  alojamientos enteros tienen (0, 0) y todas las habitaciones compartidas
+  (1, 0); esas otras combinaciones se rechazan con un mensaje. En
+  habitaciones privadas y de hotel también existe (0, 0) (216 y 6
+  anuncios), pero solo significa que el texto original no decía «private»
+  ni «shared», no que el baño fuera propio de un alojamiento entero. Por eso
+  a una habitación se le pide aclarar si el baño es privado o compartido, en
+  lugar de ofrecer una respuesta «sin especificar». Nada se corrige en
+  silencio.
+- **Rangos de precio:** se muestran con los umbrales de train redondeados
+  al céntimo y la misma regla que el target: Económico ≤ límite inferior <
+  Medio ≤ límite superior < Premium.
 - **Sin imputación desde el formulario:** `build_row()` rechaza variables
   ausentes o vacías (comprobado después de convertir tipos, así detecta
   cualquier NaN), para que el Pipeline no las rellene sin avisar.
