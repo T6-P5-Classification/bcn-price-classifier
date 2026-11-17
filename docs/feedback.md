@@ -70,7 +70,7 @@ de entorno `FEEDBACK_DIR` (tests, Docker) o con el argumento `directory=`.
 | **#25** Métricas en tiempo real | `load_labelled()` para acierto (`correct`), F1 y matriz real/predicha; `load_predictions()` para número de predicciones y distribución de clases. |
 | **#27** MongoDB (`src/database.py`) | Sustituir solo `_lock`, `_append` y `_read` de `src/feedback_store.py` por MongoDB (colecciones `predictions` y `feedback`, mismos campos). Mantener una respuesta por predicción (p. ej. índice único en `feedback.prediction_id`) y lanzar `StorageError` en los fallos. Las funciones públicas no cambian. |
 | **#34** Reentrenamiento | Los datos de #24. |
-| **#35** A/B testing | Pasar `variant="challenger"` a `save_prediction()` y comparar por `variant`. |
+| **#35** A/B testing | Implementado: la app guarda `variant` (`champion` o `challenger`) en cada predicción y `src/ab_test.py` compara el acierto por `variant` (`python -m src.ab_test`). |
 | **#36** Data drift | `load_predictions()`: distribución de las 23 variables frente a train. |
 
 ## Límites

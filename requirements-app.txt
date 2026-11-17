@@ -4,5 +4,6 @@ pandas==3.1.1
 numpy==2.5.4
 scikit-learn==1.9.1
 xgboost-cpu==3.4.1  # mismo xgboost sin librerías de GPU (imagen mucho más pequeña)
+lightgbm==4.7.0  # challenger del A/B test (#35)
 joblib==1.6.0
 streamlit==1.67.0

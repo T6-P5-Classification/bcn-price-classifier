@@ -135,6 +135,22 @@ Cada predicción y, si el usuario lo indica, su precio real por noche se
 guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
 reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
 
+### A/B testing (#35)
+
+Cada sesión de la app recibe al azar el **champion** (XGBoost) o el
+**challenger** (LightGBM, empate práctico en CV), y la predicción se guarda
+con su `variant`. La proporción del challenger se cambia con `AB_SPLIT`
+(por defecto `0.5`; `0` desactiva el test). Para comparar los aciertos con
+el feedback recibido:
+
+```bash
+python -m src.ab_test
+```
+
+Solo declara un ganador con al menos 100 respuestas por modelo y una
+diferencia clara (intervalo del 95 %). Detalles en
+[`docs/decisiones.md`](docs/decisiones.md#ab-testing-champion-frente-a-challenger-35).
+
 ### Docker (#29)
 
 El modelo no está en Git: se genera antes de construir la imagen.

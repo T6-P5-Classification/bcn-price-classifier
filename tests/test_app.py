@@ -397,3 +397,72 @@ def test_prediction_is_shown_even_if_it_cannot_be_stored(run_app, monkeypatch):
     assert not at.exception
     assert any("Probabilidad estimada" in m.value for m in at.markdown)
     assert not any(b.label == "Enviar" for b in at.button)  # no feedback without a stored prediction
+
+
+# --- A/B test (#35) -------------------------------------------------------
+
+def make_challenger():
+    X, y = synthetic_training(seed=1)
+    model = Pipeline([("prep", build_preprocessor()), ("model", LogisticRegression(C=0.1, max_iter=500))])
+    model.fit(X, y)
+    return {"model": model, "model_name": "LightGBM", "model_version": "lightgbm-test",
+            "class_labels": class_labels(model.classes_), "test_metrics": None,
+            "ab_role": "challenger"}
+
+
+AB_CHAMPION = {"model_name": "XGBoost", "model_version": "xgboost-test", "provisional": False}
+
+
+@pytest.mark.parametrize("split, expected", [("1", "LightGBM"), ("0", "XGBoost")])
+def test_ab_split_decides_which_model_answers_and_is_recorded(run_app, tmp_path, monkeypatch,
+                                                              split, expected):
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", split)
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    at.button[0].click().run()
+    assert not at.exception
+    assert at.session_state["variant"] == ("challenger" if split == "1" else "champion")
+    stored = load_predictions(tmp_path / "feedback")
+    assert stored["model_name"].tolist() == [expected]
+    assert stored["variant"].tolist() == [at.session_state["variant"]]
+    assert f"Modelo {expected}" in at.expander[0].markdown[0].value
+
+
+def test_ab_variant_stays_the_same_during_a_session(run_app, tmp_path, monkeypatch):
+    """Sticky: several predictions in one session use the same model."""
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", "0.5")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    variant = at.session_state["variant"]
+    for beds in (1, 2, 3):
+        next(n for n in at.number_input if n.label == "Camas").set_value(beds)
+        at.button[0].click().run()
+        assert not at.exception and at.session_state["variant"] == variant
+    names = load_predictions(tmp_path / "feedback")["model_name"]
+    assert len(names) == 3 and names.nunique() == 1
+
+
+def test_challenger_details_do_not_claim_it_was_chosen_or_tested(run_app, monkeypatch):
+    monkeypatch.setenv("AB_SPLIT", "1")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger(),
+                 test_metrics={"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522})
+    at.button[0].click().run()
+    details = at.expander[0].markdown[0].value
+    assert "en prueba frente al modelo elegido" in details
+    assert "elegido entre cuatro" not in details
+    assert "2.522" not in details  # the champion's test result is not the challenger's
+
+
+def test_without_challenger_or_with_a_bad_split_only_the_champion_answers(run_app, tmp_path,
+                                                                          monkeypatch):
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", "1")
+    at = run_app(**AB_CHAMPION)  # artifact without challenger
+    at.button[0].click().run()
+    assert not at.exception and at.session_state["variant"] == "champion"
+
+    monkeypatch.setenv("AB_SPLIT", "mitad")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    at.button[0].click().run()
+    assert not at.exception and at.session_state["variant"] == "champion"
+    assert set(load_predictions(tmp_path / "feedback")["model_name"]) == {"XGBoost"}
