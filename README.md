@@ -112,8 +112,11 @@ actualización completa del README prevista en #41.
 
 ### Modelo XGBoost
 
-Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
-train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
+El notebook candidato usa 40 pruebas de Optuna y diagnósticos fuera de fold
+solo sobre train: [ejecución y resultados](docs/xgboost.md). La evaluación
+final posterior del champion ya está registrada en
+[champion_test.json](docs/results/champion_test.json); no se repite al
+ejecutar el candidato.
 La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
 ### App Streamlit (#15)
@@ -125,9 +128,29 @@ python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git
 streamlit run app/app.py
 ```
 
-El modelo de la app es **provisional** (regresión logística) hasta que se
-integre el champion (#22/#23); la app lo indica en pantalla. Los tests de la
-app (`tests/test_app.py`) usan un modelo sintético y no necesitan el snapshot.
+La app usa el **champion XGBoost** (#22): los hiperparámetros de la prueba
+de Optuna seleccionada, ajustado con todo train (no usa test). Si existe
+`docs/results/champion_test.json`, la app muestra también su resultado en
+test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
+necesitan el snapshot.
+
+Cada predicción y, si el usuario lo indica, su precio real por noche se
+guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
+reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
+
+### Docker (#29)
+
+El modelo no está en Git: se genera antes de construir la imagen.
+
+```bash
+python -m src.train_app_model
+docker build -t bcn-price-classifier .
+docker run -p 8501:8501 bcn-price-classifier   # http://localhost:8501
+```
+
+La imagen usa `requirements-app.txt` (solo lo que necesita la app, mismas
+versiones) y `.dockerignore` deja fuera datos, `.venv`, notebooks y docs. El
+puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
 
 ## 🗂️ Estructura
 

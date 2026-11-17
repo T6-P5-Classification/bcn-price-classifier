@@ -119,6 +119,41 @@ def build_row(artifact: dict, values: dict) -> pd.DataFrame:
     return df
 
 
+CUSTOMER_NOTICE = (
+    "Estimación orientativa basada en anuncios de Airbnb en Barcelona. "
+    "No es una recomendación de precio y puede no acertar."
+)
+
+
+def customer_notice(artifact: dict) -> str:
+    """Short, plain notice under the result, for the host."""
+    if artifact.get("provisional", True):
+        return f"{CUSTOMER_NOTICE} Modelo provisional de demostración."
+    return CUSTOMER_NOTICE
+
+
+def model_details(artifact: dict) -> str:
+    """Technical details, shown only if the user opens «Sobre el modelo»."""
+    if artifact.get("provisional", True):
+        text = f"Modelo provisional para demostración ({artifact['model_name']})."
+    else:
+        text = f"Modelo {artifact['model_name']}, elegido entre cuatro modelos comparados."
+    metrics = artifact.get("test_metrics")
+    if metrics:
+        accuracy = f"{metrics['accuracy']:.0%}".replace("%", " %")
+        f1 = f"{metrics['f1_macro']:.3f}".replace(".", ",")
+        n_test = f"{metrics['n_test']:,}".replace(",", ".")
+        text += (
+            f" En {n_test} anuncios que no vio al entrenar acertó la "
+            f"categoría en el {accuracy} de los casos (F1 macro {f1})."
+        )
+    return (
+        f"{text} El resultado estima un segmento de precio anunciado; no recomienda "
+        "un precio ni garantiza una clasificación correcta. La probabilidad es la "
+        "del modelo, no una garantía de acierto."
+    )
+
+
 def predict(artifact: dict, row: pd.DataFrame) -> tuple[str, pd.Series]:
     """Predicted class name and probabilities indexed by class name.
 

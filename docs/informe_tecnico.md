@@ -1,10 +1,10 @@
 # Informe técnico — Barcelona Airbnb Price Classifier
 
 **Versión para revisión del equipo (#38), 17/11/2026.** Síntesis del código y
-los resultados integrados en `dev` (base `960e9c6`). El equipo ha seleccionado
-XGBoost como champion. La evaluación final está preparada, pero todavía no
-existe un resultado `champion_test.json` registrado en esta base. Este informe
-no ejecuta test ni repite entrenamientos de otros responsables.
+los resultados integrados en `dev` (base `4b5f88d`). El equipo ha seleccionado
+XGBoost como champion. La evaluación final del champion está registrada en `champion_test.json`.
+Este informe incorpora ese resultado existente sin volver a ejecutar test ni
+repetir entrenamientos de otros responsables.
 
 ## 1. Problema y alcance
 
@@ -215,22 +215,44 @@ conserva las métricas originales de RF; no mezcla la reconstrucción con ellas.
 Los otros tres modelos reproducen sus métricas OOF en ese análisis. Véase
 [el análisis de errores](analisis_errores.md).
 
-### Evaluación final preparada, todavía pendiente
+### Evaluación final registrada del champion
 
-`notebooks/08b_champion_test.ipynb` comprueba la selección, procedencia, esquema
-y umbrales, ajusta el Pipeline elegido con todo train y prevé una sola
-evaluación de test. El resultado se registra en `docs/results/champion_test.json`.
-Ese archivo **no existe en la base revisada**. Por tanto, no se incluyen
-accuracy, F1, informe por clase ni matriz finales de test, y no se afirma que
-la evaluación ya haya ocurrido. No ejecutar este notebook como parte de la
-revisión documental ni para preparar las diapositivas.
+El responsable de #22 registró una evaluación final de XGBoost el 17/11/2026
+en [champion_test.json](results/champion_test.json), sobre 2.522 anuncios.
+El Pipeline se ajustó con los 10.088 de train y los parámetros seleccionados
+antes de evaluar. Este informe solo lee el artefacto agregado existente,
+sin volver a predecir test ni usarlo para cambiar el modelo.
+
+| Métrica final de test | Valor |
+|---|---:|
+| Accuracy | 0.764473 |
+| F1 macro | 0.765056 |
+| Errores extremos | 0.012292 |
+
+| Clase real / Predicha en test | Económico | Medio | Premium |
+|---|---:|---:|---:|
+| Económico | 725 | 96 | 20 |
+| Medio | 92 | 568 | 180 |
+| Premium | 11 | 195 | 635 |
+
+| Clase en test | Precision | Recall | F1 | Support |
+|---|---:|---:|---:|---:|
+| Económico | 0.875604 | 0.862069 | 0.868784 | 841 |
+| Medio | 0.661234 | 0.676190 | 0.668629 | 840 |
+| Premium | 0.760479 | 0.755054 | 0.757757 | 841 |
+
+La accuracy final es 76.45% y el F1 macro 0.765056. Los errores extremos
+son 31/2.522, aproximadamente 1.23%. Estas cifras no sustituyen la CV usada
+para seleccionar el champion. Se mantiene la advertencia de exposición
+histórica del mismo test por la baseline: el resultado no equivale a un
+test completamente nunca visto por el proyecto. No se afirma significación
+estadística por la similitud de F1 entre validación y test.
 
 ## 8.1. Aplicación y operación
 
 La app básica integrada en `app/app.py` usa un formulario con las 23 entradas,
-traducción de clases y un artefacto local con modelo y metadatos. El modelo
-actual de la app es una **regresión logística provisional**, distinta de la
-configuración champion seleccionada para la futura integración. El formulario
+traducción de clases y un artefacto local con modelo y metadatos. La app utiliza ahora el **champion XGBoost**, generado con los parámetros
+seleccionados y las comprobaciones de procedencia compartidas. El formulario
 conserva las combinaciones observadas de tipo/modalidad y valida los campos
 sin imputarlos silenciosamente. Las coordenadas proceden de las medianas por
 barrio de train, no de una dirección personal.
@@ -238,9 +260,31 @@ barrio de train, no de una dirección personal.
 La app muestra segmento, rango según umbrales de train y probabilidades
 estimadas del modelo. No se ha demostrado calibración de esas probabilidades
 ni mejora económica. La lógica de formulario se prueba con datos y modelos
-sintéticos. Feedback persistente, métricas en tiempo real, reentrenamiento,
-drift y despliegue siguen sus propias entregas. Este informe no acredita
-MongoDB o una URL pública operativos.
+sintéticos. La captura de predicciones y feedback está integrada mediante
+`src/feedback_store.py`: el usuario declara un precio, su clase se calcula
+con los umbrales de la predicción y solo se acepta una respuesta por
+predicción. El almacenamiento actual usa CSV locales ignorados por Git.
+MongoDB, métricas en tiempo real, reentrenamiento, drift y despliegue
+siguen sus propias entregas. Este informe no acredita MongoDB ni una URL
+pública operativos. El contrato está en [feedback.md](feedback.md).
+## 8.2. Importancia de variables del champion
+
+La entrega #16 registra la importancia por permutación sobre validación
+fuera de fold del champion, agrupando cada entrada original antes del
+encoding. Las salidas están en `champion_feature_importance.csv` y su JSON
+de procedencia. Los primeros puestos registrados son `minimum_nights`
+(caída media de F1 0.200013 al permutar), `accommodates` (0.043586) y
+`latitude` (0.029682). Son descensos de la métrica, no porcentajes de
+contribución que deban sumar 100%. El artefacto informa Python 3.14.7 y
+diferencias entre versiones de origen e instaladas, conservadas como
+limitación de procedencia frente al entorno objetivo Python 3.12. No se
+atribuye una nueva ejecución de la importancia a este informe.
+No se interpreta la importancia como causal ni se usa la
+evaluación final de test para guiar una nueva selección. Las variables
+correlacionadas pueden compartir o sustituir señal y el resultado describe
+este modelo y snapshot. Los detalles reproducibles están en
+`08c_feature_importance.ipynb` y `src/feature_importance.py`.
+
 ## 9. Límites de la evidencia
 
 - La lista de 23 variables también se seleccionó mediante ablaciones con
@@ -255,11 +299,11 @@ MongoDB o una URL pública operativos.
   o snapshots. No se ha demostrado estabilidad temporal o ausencia de drift.
 - Las clases se definen por precios anunciados del snapshot: no son clases
   universales de calidad ni niveles absolutos de precio para siempre.
-- No se han acordado costes numéricos por clase ni umbral de aceptación del
-  champion. No se inventan esos criterios a partir de los scores observados.
-- La app básica está integrada con un modelo provisional. Este informe no
-  acredita un despliegue público, integración del champion o persistencia de
-  feedback; deben verificarse en sus entregas antes de presentarse como hechos.
+- Este informe no fija costes numéricos por clase ni un criterio nuevo de
+  aceptación. No se deducen requisitos a partir de los scores observados.
+- La app integra el champion y guarda feedback en CSV locales. Este informe
+  no acredita un despliegue público ni MongoDB. El disco efímero de un
+  despliegue no garantiza persistencia entre reinicios o redespliegues.
 
 ## 10. Reproducción y procedencia
 
@@ -275,7 +319,7 @@ La evidencia procede de los CSV `*_comparison.csv` y los JSON agregados de
 Los notebooks `04` a `08` conservan las salidas de ejecución. No se vuelven a
 entrenar todos los modelos para redactar este informe.
 
-- Base documental comprobada: `960e9c6`.
+- Base documental comprobada: `4b5f88d`.
 - Snapshot: Barcelona 2026-09-17.
 - SHA-256 del raw: `226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e`.
 - CV común: cinco folds estratificados, shuffle=True, random_state=42.
@@ -283,9 +327,9 @@ entrenar todos los modelos para redactar este informe.
   supone que todas las ejecuciones compartieran exactamente el mismo entorno.
 
 Para reproducir un candidato, seguir su guía y mantener el Pipeline dentro de
-CV. Para inspeccionar la tabla, usar `08_comparison.ipynb`. No ejecutar `08b`
-para una comprobación rutinaria, porque reserva la evaluación final. La app
-provisional tiene sus instrucciones en el README. Los tests funcionales con
+CV. Para inspeccionar la tabla, usar `08_comparison.ipynb`. No repetir `08b`
+para una comprobación rutinaria: su evaluación final ya está registrada. La
+app y su feedback tienen instrucciones en el README y la guía específica. Los tests funcionales con
 datos sintéticos no sustituyen una evaluación de calidad de un artefacto real.
 
 ## 11. Estado de entrega y próximos pasos
@@ -300,14 +344,14 @@ por entregas todavía pendientes del resto del equipo.
 | Preparación y 23 entradas compartidas | Integrado |
 | Cuatro candidatos y comparación CV/OOF | Resultados registrados e integrados |
 | Champion | XGBoost, decisión registrada del equipo |
-| Evaluación final de test | Notebook preparado, resultado no registrado |
-| App básica | Integrada con regresión logística provisional |
-| Integración del champion y feedback persistente | Pendiente de sus responsables |
+| Evaluación final de test | Registrada: accuracy 0.764473, F1 macro 0.765056 |
+| App | Champion XGBoost integrado |
+| Feedback | Captura integrada, CSV local; MongoDB pendiente |
 | Despliegue público, drift y reentrenamiento | Sin evidencia operativa en esta base |
-| Umbral mínimo de calidad (#32) | Valor de aceptación todavía no definido |
+| Control mínimo de calidad (#32) | Entrega separada; este informe no certifica aceptación |
 
-Al registrar la evaluación final, añadir sus métricas y conservar la advertencia
-sobre exposición histórica de test. Al integrar champion, persistencia y
+Se incorporan las métricas finales existentes y se conserva la advertencia
+sobre exposición histórica de test. Al integrar MongoDB, monitorización y
 despliegue, actualizar este estado con evidencias. Las limitaciones no se
 eliminan porque el modelo cumpla el gap. La revisión humana del equipo sigue
 siendo necesaria antes de integrar el informe.
