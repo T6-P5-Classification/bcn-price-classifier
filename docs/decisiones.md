@@ -633,6 +633,55 @@ Son asociaciones descriptivas de este snapshot, no causas, rankings estables
 de zonas pequeñas ni calidad predictiva demostrada. Reproducción, resultados
 y límites: [EDA por distritos y room_type](eda_distritos_room_type.md).
 
+## App Streamlit (#15)
+
+La app (`app/app.py`) pide al anfitrión las 23 variables de `MODEL_FEATURES`
+y muestra el segmento de precio anunciado estimado. La lógica del formulario
+está en `app/app_logic.py` para poder probarla sin interfaz.
+
+- **Nada se deduce si el usuario puede declararlo.** El tipo de alojamiento
+  (`property_type`) y lo que se alquila (`room_type`) se preguntan por
+  separado: en train el mismo tipo puede alquilarse entero o por
+  habitaciones (p. ej. «Room in hotel»: 372 habitaciones privadas, 15 de
+  hotel y 7 enteros). Las combinaciones que no aparecen en train se
+  rechazan con un mensaje (p. ej. «Entire rental unit» como habitación
+  compartida): el artefacto guarda `room_types_by_property` y los tipos
+  ambiguos conservan todas sus modalidades observadas, sin imponer la más
+  frecuente.
+- **Baño:** se pregunta con tres opciones que reproducen los indicadores de
+  `src/cleaning.py` sobre `bathrooms_text`: propio del alojamiento entero
+  (0, 0), privado (0, 1) o compartido (1, 0). En train, todos los
+  alojamientos enteros tienen (0, 0) y todas las habitaciones compartidas
+  (1, 0); esas otras combinaciones se rechazan con un mensaje. En
+  habitaciones privadas y de hotel también existe (0, 0) (216 y 6
+  anuncios), pero solo significa que el texto original no decía «private»
+  ni «shared», no que el baño fuera propio de un alojamiento entero. Por eso
+  a una habitación se le pide aclarar si el baño es privado o compartido, en
+  lugar de ofrecer una respuesta «sin especificar». Nada se corrige en
+  silencio.
+- **Rangos de precio:** se muestran con los umbrales de train redondeados
+  al céntimo y la misma regla que el target: Económico ≤ límite inferior <
+  Medio ≤ límite superior < Premium.
+- **Sin imputación desde el formulario:** `build_row()` rechaza variables
+  ausentes o vacías (comprobado después de convertir tipos, así detecta
+  cualquier NaN), para que el Pipeline no las rellene sin avisar.
+- **Barrio:** nombre oficial y distrito; latitud y longitud son la mediana
+  de train del barrio (el formulario no pide la dirección exacta).
+- **Etiquetas del modelo:** el artefacto guarda `class_labels`, que traduce
+  las clases del modelo al nombre mostrado. Sirve tanto para modelos con
+  etiquetas de texto (regresión logística) como numéricas 0/1/2 (XGBoost con
+  `LABEL_TO_INT`), así que cambiar al champion no rompe la app.
+- **Aviso en pantalla:** el modelo actual es provisional (regresión
+  logística). El resultado estima un segmento de precio anunciado; no
+  recomienda un precio ni garantiza la clasificación. Se muestra la
+  «probabilidad estimada por el modelo», no una «confianza».
+- **Tests (`tests/test_app.py`):** modelo sintético, sin snapshot. Comprueban
+  carga y predicción (AppTest), correspondencia formulario → variables,
+  reglas de habitación y baño, rechazo de valores vacíos y lectura de
+  etiquetas de texto y numéricas. No miden la calidad de las predicciones.
+
+**Límites:** `models/app_model.joblib` se genera localmente y no se sube a
+Git; la integración del champion y el despliegue van en #23 y #29/#33.
 ## Análisis de errores vecinos y extremos (#17): alcance y discrepancia documentada
 
 El alcance confirmado analiza las cuatro configuraciones seleccionadas, sin
