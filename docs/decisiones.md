@@ -501,11 +501,12 @@ variables. La guía de ejecución está en el README y la verificación en
 ## LightGBM (#21)
 
 El notebook `notebooks/07_model_lightgbm.ipynb` reutiliza el split y las 23
-variables compartidas; el test se descarta al cargar. Todas las validaciones
+variables compartidas; el test se carga con la función común, pero no se usa
+para evaluar ni seleccionar. Todas las validaciones
 cruzadas usan el Pipeline completo, los mismos cinco folds y `n_jobs=1`.
 
 - **Referencias:** Dummy `most_frequent` (F1 macro 0,167) y LightGBM por
-  defecto (F1 validación ≈ 0,768, gap ≈ 0,11: memoriza).
+  defecto (F1 validación ≈ 0,768, gap ≈ 0,11).
 - **Optuna:** 40 pruebas secuenciales, TPE con semilla 42, solo train. Espacio:
   `n_estimators` 100–600, `learning_rate` 0,01–0,1 (log), `num_leaves` 8–48,
   `max_depth` 3–8, `min_child_samples` 20–150, `subsample` 0,6–1
@@ -513,14 +514,21 @@ cruzadas usan el Pipeline completo, los mismos cinco folds y `n_jobs=1`.
   Maximiza la media de F1 macro de validación y registra el gap de cada prueba.
 - **Selección:** la mejor prueba con gap < 0,05, la misma regla que XGBoost.
   Las pruebas con mejor validación (≈ 0,777) tienen gap de 0,14–0,19, así que
-  se acepta ≈ 1,4 puntos menos de validación a cambio de no memorizar.
+  se acepta ≈ 1,4 puntos menos de validación para cumplir el límite acordado.
 - **Resultado (validación cruzada en train):** F1 train 0,812, validación
   0,763 ± 0,002, gap 0,049; errores extremos OOF 1,0 %. Por clase (OOF):
-  Económico 0,88, Medio 0,66, Premium 0,75.
+  Económico 0,88, Medio 0,66, Premium 0,75. Medio tiene el F1 más bajo; que
+  limite con las otras dos clases es una posible explicación, no comprobada.
 - **Tabla común:** `docs/results/lightgbm_comparison.csv`, con la
   configuración completa del estimador en `params`.
+- **Registro completo:** `docs/results/lightgbm_trials.csv` (las 40 pruebas) y
+  `docs/results/lightgbm_details.json` (versiones, regla de selección,
+  resultados por fold y diagnósticos OOF).
 
-**Límites:** el gap queda justo por debajo del límite; otra prueba con gap
+**Límites:** el gap medio (0,0495) queda justo por debajo del límite y en 3 de
+los 5 folds el gap individual lo supera ligeramente (máximo 0,052). La regla
+común se aplica a la media, así que no se incumple, pero cumplirla no demuestra
+que el modelo no sobreajuste; otra prueba con gap
 0,043 y validación 0,761 es equivalente dentro del ruido entre folds, pero se
 mantiene la regla común sin cambiarla tras ver los resultados. Seleccionar y
 calcular OOF en los mismos folds no es validación anidada ni una evaluación
