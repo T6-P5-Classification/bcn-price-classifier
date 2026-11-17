@@ -135,6 +135,20 @@ Cada predicción y, si el usuario lo indica, su precio real por noche se
 guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
 reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
 
+### Docker (#29)
+
+El modelo no está en Git: se genera antes de construir la imagen.
+
+```bash
+python -m src.train_app_model
+docker build -t bcn-price-classifier .
+docker run -p 8501:8501 bcn-price-classifier   # http://localhost:8501
+```
+
+La imagen usa `requirements-app.txt` (solo lo que necesita la app, mismas
+versiones) y `.dockerignore` deja fuera datos, `.venv`, notebooks y docs. El
+puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
+
 ## 🗂️ Estructura
 
 ```
