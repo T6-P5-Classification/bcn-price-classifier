@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 import src.preprocessing as preprocessing
-from src.cleaning import MODEL_EXCLUDED_COLUMNS
+from src.cleaning import MODEL_EXCLUDED_COLUMNS, MODEL_FEATURES
 from src.preprocessing import create_price_target, load_train_test
 
 
@@ -43,6 +43,9 @@ def listings_file(tmp_path):
             "estimated_revenue_l365d": 50000.0,
             "latitude": 41.30 + rows / 10000,
             "longitude": 2.10 + rows / 10000,
+            "neighbourhood_cleansed": "Synthetic neighbourhood",
+            "neighbourhood_group_cleansed": "Synthetic district",
+            "property_type": "Synthetic apartment",
             "room_type": np.where(rows % 2 == 0, "Entire home/apt", "Private room"),
             "accommodates": rows % 6 + 1,
             "bedrooms": rows % 3 + 1,
@@ -123,10 +126,10 @@ def test_feature_schema_matches_and_forbidden_inputs_are_absent(prepared_data):
     }
     for X in (X_train, X_test):
         assert forbidden.isdisjoint(X.columns)
-        assert {
-            "latitude", "longitude", "amenities_count", "has_hair_dryer",
-            "has_clothes_dryer", "bathrooms_count", "minimum_nights_was_missing",
-        }.issubset(X.columns)
+        # The fixture supplies all agreed inputs, including derived services
+        # and bathrooms. Require the full whitelist in its exact order: a
+        # train/test pair that omits the same feature must still fail.
+        assert X.columns.tolist() == list(MODEL_FEATURES)
 
 
 def test_predictor_nulls_are_preserved_for_train_only_imputation(
@@ -138,9 +141,6 @@ def test_predictor_nulls_are_preserved_for_train_only_imputation(
         expected = raw.loc[X.index, "minimum_nights"]
         assert expected.isna().any()
         pd.testing.assert_series_equal(X["minimum_nights"], expected)
-        np.testing.assert_array_equal(
-            X["minimum_nights_was_missing"], expected.isna().astype("int8")
-        )
 
 
 def test_final_thresholds_use_train_prices_not_test_or_full_dataset(

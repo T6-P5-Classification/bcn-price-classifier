@@ -62,8 +62,8 @@ limpieza y preprocesamiento existentes.
 | Precios válidos | Se excluyen filas sin precio válido, con precio cero, negativo o infinito; se conserva un precio positivo extremo. |
 | Separación y cobertura | Cada fila válida aparece una sola vez, en entrenamiento o test; se respeta el reparto 80/20 con el redondeo necesario. |
 | Asociación de filas | Las características y la categoría siguen correspondiendo al mismo anuncio. |
-| Variables de entrada | Train y test tienen las mismas columnas, orden y tipos; no entran precio, identificadores ni los campos excluidos comprobados. Se conservan las variables derivadas esperadas. |
-| Nulos permitidos | Los valores vacíos de `minimum_nights` se conservan con su indicador; no se rellenan antes del preprocesamiento. |
+| Variables de entrada | Train y test tienen las columnas de `MODEL_FEATURES`, en su orden y con los mismos tipos; no entran precio, identificadores ni los campos excluidos comprobados. |
+| Nulos permitidos | Los valores vacíos de `minimum_nights` se conservan; no se rellenan antes del preprocesamiento ni se exige un indicador descartado del modelo. |
 | Aprendizaje de umbrales | Los límites de las categorías se calculan una sola vez con precios de entrenamiento, no con test ni con todo el dataset. |
 | Categorías finales | Train y test usan los mismos límites de entrenamiento y las etiquetas ordenadas `Económico`, `Medio`, `Premium`, sin etiquetas nulas. |
 | Estratificación | Los grupos provisionales de precio mantienen aproximadamente sus proporciones al separar test. Estos grupos no son las categorías finales. |
@@ -87,8 +87,11 @@ python -m pytest -q
 Los tests de #30 crean anuncios ficticios en un CSV comprimido temporal y
 ejecutan la función real `load_train_test()`. **No necesitan descargar el
 dataset de Airbnb**, acceder a una base de datos ni utilizar credenciales.
-Tampoco fijan como requisito el número de filas o las 71 variables del
-snapshot actual.
+La tabla ficticia incluye las entradas necesarias para las 23 variables
+acordadas. El esquema esperado se toma de `MODEL_FEATURES`, no de una lista
+antigua de variables. No se fija como requisito el número de filas del
+snapshot real. Las particiones de estos tests son sintéticas: no se consulta
+ni se evalúa el test reservado del dataset de Airbnb.
 
 ### Cómo interpretar el resultado
 
@@ -106,6 +109,12 @@ Las reglas de preparación se documentan en
 [`docs/decisiones.md`](docs/decisiones.md); estos tests verifican parte de
 ese contrato. Esta sección documenta únicamente #30, no sustituye la
 actualización completa del README prevista en #41.
+
+### Modelo XGBoost
+
+Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
+train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
+La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
 ## 🗂️ Estructura
 
