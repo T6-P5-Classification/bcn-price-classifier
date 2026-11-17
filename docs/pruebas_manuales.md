@@ -267,6 +267,67 @@ sus cuatro CSV y siete filas, sin incorporar los agregados descriptivos de EDA.
 Estas comprobaciones no autorizan publicación, aprobación ni merge. Los
 resultados concretos de la ejecución se resumen en `docs/xgboost.md`.
 
+## Issue 17 — Análisis de errores entre categorías vecinas
+
+Rama: `feat/17-neighbour-class-errors`, desde `dev` en `e2e13e1`.
+Archivo: `notebooks/08_comparison.ipynb`, sección nueva de la issue 17.
+Guía completa: [`analisis_errores.md`](analisis_errores.md).
+
+1. **Requisitos, solo lectura:** comprobar rama, entorno del proyecto, CSV
+   local del README y cuatro CSV de comparación de los modelos seleccionados.
+   No se requiere GeoJSON. No ejecutar una búsqueda para «completar» candidatos.
+2. **Tests:** desde la raíz, ejecutar `.venv/bin/python -m pytest -q
+   tests/test_error_analysis.py tests/test_comparison_notebook.py` en una
+   sola línea, y después
+   `.venv/bin/python -m pytest -q`. Incluir también
+   `tests/test_error_analysis_results.py` para validar los agregados guardados.
+   Usan datos sintéticos y agregados; no
+   requieren Airbnb raw ni servicios externos. Pueden crear cachés locales.
+   Esperado: todas las comprobaciones correctas, sin debilitar las del lector.
+3. **Leer salidas guardadas:** abrir el notebook sin ejecutar. La primera
+   sección sigue siendo el lector de CSV; la nueva no elige un champion.
+   Comprobar que las filas de matrices son categorías REALES y las columnas
+   PREDICHAS, con el orden Económico/Medio/Premium. Cada matriz debe cubrir
+   los anuncios de train; no debe incluir test ni referencias Dummy duplicadas.
+4. **Denominadores:** en el primer gráfico de errores, porcentajes sobre
+   TODOS los anuncios y aciertos omitidos; las barras no suman 100 %. En el
+   segundo, solo predicciones EQUIVOCADAS: vecinos y extremos suman 100 %
+   cuando existen errores. No confundirlos con porcentajes por categoría real.
+5. **Coherencia:** `error17_summary.csv` tiene cuatro filas y
+   `error17_directions.csv` seis por modelo. Aciertos + vecinos + extremos
+   deben sumar n; las seis confusiones suman los errores. En cada dirección,
+   comprobar real y predicha antes de interpretar un porcentaje.
+6. **Procedencia:** `error17_details.json` debe indicar `train_oof`,
+   `test_inspected=false`, `nested_cv=false`, sin búsqueda ni ajuste final
+   con todo train, 20 ajustes por folds y 23 entradas. Revisar firma de datos,
+   firmas de CSV/código, versiones, configuración efectiva y contraste
+   frente a las métricas OOF de origen. RF debe conservar explícitamente sus
+   diferencias autorizadas, sin marcarlas como coincidencias.
+7. **Reproducción opcional:** conservar copia del notebook y los tres archivos
+   `error17_*` si se quiere mantener la ejecución anterior. Ejecutar
+   `.venv/bin/python tools/run_error_analysis_notebook.py`. Lee el CSV real,
+   consume CPU, realiza 20 ajustes fijados y reemplaza esas cuatro salidas.
+   No consulta test, no hace Optuna, no guarda predicciones individuales ni
+   modifica raw/CSV de candidatos/servicios remotos. No ejecutar simultáneamente
+   desde editor y terminal.
+8. **Ante fallo:** detenerse si falta un candidato, se duplica, cambian hash,
+   protocolo o métricas sin excepción acordada. Anotar celda/mensaje, revisar datos, entorno y
+   parámetros; no consultar test, repetir Optuna ni cambiar las cifras para
+   forzar coincidencias. Un resultado antiguo no valida una ejecución fallida.
+
+Estos pasos no autorizan publicación, aprobación, cambios de tarjeta ni merge.
+
+El primer intento se detuvo por RF: accuracy local 0,759516 frente a 0,758822
+del CSV. La revisión con sus funciones originales obtuvo la misma diferencia.
+El usuario autorizó continuar mostrándolas por separado: no se cambia el
+CSV de RF ni se afirma reproducción exacta. Ver `analisis_errores.md`.
+
+Comprobado al completar la ejecución: siete celdas de código sin errores,
+seis figuras y tablas agregadas de cuatro modelos/24 direcciones. Los otros
+tres modelos coinciden con sus métricas OOF de origen; RF conserva el flag
+de diferencia y ambas cifras. Pasan 26 tests nuevos y 110 tests en la suite
+completa. Revisar visualmente matrices y denominadores además de los tests.
+
 ## Revisión de entregas documentales y automatización
 
 - Decisiones comunes: leer `docs/decisiones.md` en la versión correspondiente
