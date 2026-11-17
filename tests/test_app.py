@@ -25,7 +25,9 @@ from app_logic import (  # noqa: E402
 )
 from src.cleaning import MODEL_FEATURES  # noqa: E402
 from src.preprocessing import TARGET_LABELS, build_preprocessor  # noqa: E402
-from src.train_app_model import champion_model, class_labels, held_out_summary  # noqa: E402
+from src.train_app_model import (  # noqa: E402
+    champion_model, champion_provenance, check_training_data, class_labels, held_out_summary,
+)
 from src.xgboost_model import FIXED_PARAMS  # noqa: E402
 
 APP = str(ROOT / "app" / "app.py")
@@ -242,11 +244,64 @@ def test_champion_model_stops_if_parameters_differ_from_the_comparison(tmp_path)
         champion_model(results)
 
 
-def test_held_out_summary_is_optional_and_reads_the_single_evaluation(tmp_path):
-    assert held_out_summary(tmp_path) is None
-    record = {"test": {"f1_macro": 0.7651, "accuracy": 0.7645}, "n_test": 2522}
-    (tmp_path / "champion_test.json").write_text(json.dumps(record))
-    assert held_out_summary(tmp_path) == {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}
+PROVENANCE = {
+    "model": "XGBoost", "selected_trial": 34, "params": {"max_depth": 6, "learning_rate": 0.136},
+    "raw_sha256": "a" * 64, "train_rows": 10088, "thresholds": {"lower": 122.0, "upper": 249.72},
+}
+
+
+def make_record(**changes):
+    record = {
+        "champion": "XGBoost", "selected_trial": 34,
+        "params": {"max_depth": 6, "learning_rate": 0.136},
+        "provenance": {"raw_sha256": "a" * 64}, "n_train": 10088,
+        "thresholds": {"lower": 122.0, "upper": 249.72},
+        "test": {"f1_macro": 0.7651, "accuracy": 0.7645}, "n_test": 2522,
+    }
+    record.update(changes)
+    return record
+
+
+def test_champion_provenance_matches_the_comparison_files():
+    provenance = champion_provenance()
+    details = json.loads((ROOT / "docs/results/xgboost_details.json").read_text())
+    assert provenance["model"] == "XGBoost" and provenance["selected_trial"] == details["selected_trial"]
+    assert provenance["train_rows"] == details["train_rows"]
+    assert provenance["thresholds"] == details["thresholds"]
+    assert provenance["params"]["max_depth"] == details["selected_params"]["max_depth"]
+
+
+@pytest.mark.parametrize("change, message", [
+    ({"raw_sha256": "b" * 64}, "data signature"),
+    ({"n_train": 999}, "train size"),
+    ({"thresholds": {"lower": 10.0, "upper": 20.0}}, "thresholds"),
+])
+def test_training_stops_if_data_differ_from_the_champion_selection(change, message):
+    current = {"raw_sha256": "a" * 64, "n_train": 10088, "thresholds": {"lower": 122.0, "upper": 249.72}}
+    check_training_data(PROVENANCE, **current)  # same data: no error
+    with pytest.raises(ValueError, match=message):
+        check_training_data(PROVENANCE, **{**current, **change})
+
+
+def test_held_out_summary_is_optional_and_reads_a_matching_record(tmp_path):
+    assert held_out_summary(PROVENANCE, tmp_path) is None
+    (tmp_path / "champion_test.json").write_text(json.dumps(make_record()))
+    assert held_out_summary(PROVENANCE, tmp_path) == {"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522}
+
+
+@pytest.mark.parametrize("change, message", [
+    ({"champion": "RandomForest"}, "model"),
+    ({"selected_trial": 12}, "trial"),
+    ({"params": {"max_depth": 9, "learning_rate": 0.136}}, "parameters"),
+    ({"provenance": {"raw_sha256": "b" * 64}}, "data signature"),
+    ({"n_train": 500}, "train size"),
+    ({"thresholds": {"lower": 10.0, "upper": 20.0}}, "thresholds"),
+])
+def test_test_metrics_of_another_model_or_data_are_rejected(tmp_path, change, message):
+    """Review case: a Random Forest record with other thresholds must not be shown."""
+    (tmp_path / "champion_test.json").write_text(json.dumps(make_record(**change)))
+    with pytest.raises(ValueError, match=message):
+        held_out_summary(PROVENANCE, tmp_path)
 
 
 def test_notice_distinguishes_provisional_and_champion_models():

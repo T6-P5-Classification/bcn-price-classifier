@@ -11,6 +11,7 @@ Usage:  python -m src.train_app_model   (or: python src/train_app_model.py)
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -23,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # works with "python src/train_app_model.py" too
 
 from src.cleaning import MODEL_FEATURES  # noqa: E402
-from src.preprocessing import TARGET_LABELS, load_train_test  # noqa: E402
+from src.preprocessing import RAW_DATA_PATH, TARGET_LABELS, load_train_test  # noqa: E402
 from src.xgboost_model import encode_target, make_pipeline  # noqa: E402
 
 MODEL_PATH = ROOT / "models" / "app_model.joblib"
@@ -60,12 +61,70 @@ def champion_model(results=RESULTS):
     return model
 
 
-def held_out_summary(results=RESULTS) -> dict | None:
-    """Metrics of the single test evaluation (#22), if it has been recorded."""
+def _same_params(a: dict, b: dict) -> bool:
+    return set(a) == set(b) and all(_same(a[k], b[k]) for k in a)
+
+
+def _same_thresholds(a: dict, b: dict) -> bool:
+    return all(_same(float(a[k]), float(b[k])) for k in ("lower", "upper"))
+
+
+def champion_provenance(results=RESULTS) -> dict:
+    """How the champion was selected: model, parameters, data signature, train size, thresholds."""
+    details = json.loads((results / "xgboost_details.json").read_text())
+    row = pd.read_csv(results / "xgboost_comparison.csv").query("model == 'XGBoost'").iloc[0]
+    if details["provenance"]["raw_sha256"] != row["raw_sha256"]:
+        raise ValueError("xgboost_details.json and xgboost_comparison.csv use different data")
+    return {
+        "model": "XGBoost",
+        "selected_trial": details["selected_trial"],
+        "params": json.loads(row["params"]),
+        "raw_sha256": row["raw_sha256"],
+        "train_rows": details["train_rows"],
+        "thresholds": details["thresholds"],
+    }
+
+
+def check_training_data(provenance: dict, *, raw_sha256: str, n_train: int, thresholds: dict) -> None:
+    """Stop before fitting if the data are not the ones the champion was selected with."""
+    problems = []
+    if raw_sha256 != provenance["raw_sha256"]:
+        problems.append("data signature (raw_sha256)")
+    if n_train != provenance["train_rows"]:
+        problems.append(f"train size ({n_train} vs {provenance['train_rows']})")
+    if not _same_thresholds(thresholds, provenance["thresholds"]):
+        problems.append(f"thresholds ({thresholds} vs {provenance['thresholds']})")
+    if problems:
+        raise ValueError(f"Training data differ from the champion selection: {problems}")
+
+
+def held_out_summary(provenance: dict, results=RESULTS) -> dict | None:
+    """Metrics of the single test evaluation (#22), only if they belong to this model.
+
+    Without a record the app works and shows no test metrics. A record of a
+    different model, parameters, data or thresholds is rejected, so that old
+    results are never shown as if they validated the current model.
+    """
     path = results / "champion_test.json"
     if not path.exists():
         return None
     record = json.loads(path.read_text())
+    problems = []
+    if record.get("champion") != provenance["model"]:
+        problems.append(f"model ({record.get('champion')})")
+    if record.get("selected_trial") != provenance["selected_trial"]:
+        problems.append("Optuna trial")
+    if not _same_params(record.get("params", {}), provenance["params"]):
+        problems.append("parameters")
+    if record.get("provenance", {}).get("raw_sha256") != provenance["raw_sha256"]:
+        problems.append("data signature (raw_sha256)")
+    if record.get("n_train") != provenance["train_rows"]:
+        problems.append("train size")
+    if not _same_thresholds(record.get("thresholds", {"lower": "nan", "upper": "nan"}),
+                            provenance["thresholds"]):
+        problems.append("thresholds")
+    if problems:
+        raise ValueError(f"champion_test.json does not belong to this model: {problems}")
     return {"f1_macro": record["test"]["f1_macro"], "accuracy": record["test"]["accuracy"],
             "n_test": record["n_test"]}
 
@@ -74,6 +133,14 @@ def main() -> None:
     X_train, _, y_train, _, thresholds = load_train_test(return_thresholds=True)
     assert list(X_train.columns) == list(MODEL_FEATURES), "Expected the 23 MODEL_FEATURES"
 
+    provenance = champion_provenance()
+    check_training_data(
+        provenance,
+        raw_sha256=hashlib.sha256(RAW_DATA_PATH.read_bytes()).hexdigest(),
+        n_train=len(X_train),
+        thresholds=thresholds,
+    )
+    test_metrics = held_out_summary(provenance)  # checked before the (slower) fit
     model = champion_model()
     model.fit(X_train, encode_target(y_train))  # Económico=0, Medio=1, Premium=2
 
@@ -105,7 +172,8 @@ def main() -> None:
         "hood_coords": by_hood[["latitude", "longitude"]].median().to_dict("index"),
         "model_name": "XGBoost",
         "provisional": False,
-        "test_metrics": held_out_summary(),
+        "test_metrics": test_metrics,
+        "provenance": provenance,
         "class_labels": class_labels(model.classes_),
     }
     MODEL_PATH.parent.mkdir(exist_ok=True)

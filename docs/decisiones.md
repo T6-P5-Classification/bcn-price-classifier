@@ -764,15 +764,24 @@ de la regresión logística provisional:
 - Ajuste con **todo train** y la codificación acordada (Económico=0, Medio=1,
   Premium=2); `class_labels` traduce las clases a sus nombres en la app. No se
   usa test para entrenar ni para elegir nada.
+- **Mismos datos que en la selección:** antes de ajustar se comprueba que la
+  firma del archivo de datos (`raw_sha256`), el tamaño de train y los umbrales
+  coinciden con los registrados para el champion; si no, se detiene.
 - El aviso bajo el resultado indica el modelo y, si existe
   `champion_test.json`, su resultado en la evaluación única de test
-  (accuracy y F1 macro). Se mantienen los límites: estima un segmento de
+  (accuracy y F1 macro). Esas métricas solo se incorporan si el registro
+  corresponde a este modelo: mismo champion, prueba de Optuna, parámetros,
+  firma de datos, tamaño de train y umbrales. Si no coincide, el
+  entrenamiento se detiene para no presentar resultados de otro modelo como
+  si validaran el actual; si no existe, la app funciona sin mostrarlas. La
+  procedencia se guarda en el artefacto (`provenance`). Se mantienen los límites: estima un segmento de
   precio anunciado, no recomienda un precio ni garantiza la clasificación.
 - Tests: parámetros del champion, parada si difieren de la comparación,
-  lectura opcional del resultado de test, aviso de champion frente a
+  parada si cambian datos, tamaño de train o umbrales, rechazo de métricas de
+  test de otro modelo, parámetros, datos o umbrales, lectura opcional del
+  resultado de test, aviso de champion frente a
   provisional y AppTest con un modelo de etiquetas numéricas.
 
 **Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
 generándose localmente y no se sube a Git; su uso en Docker/Render se decide
 en #29/#33.
-
