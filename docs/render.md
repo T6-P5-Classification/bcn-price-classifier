@@ -2,11 +2,13 @@
 
 ## Estado
 
-Preparación en `feat/33-render-deployment`, desde `dev` en `ec04c87`.
-**No hay un despliegue remoto ni una URL pública verificados todavía.**
-Objetivo: ejecutar la app en Render Free y conservar predicciones y respuestas
-en Atlas Free, independientemente de los reinicios de la app. Configurar una
-variable no prueba la conexión; esa integración sigue pendiente.
+Rama `feat/33-render-deployment`, desde `dev` en `ec04c87`.
+**Demo:** https://bcn-price-classifier.onrender.com.
+Código desplegado: `657afa5`; las actualizaciones documentales posteriores no
+cambian esa identificación. Servicio Docker en Frankfurt, Render Free y Atlas
+Free. El flujo de predicción y respuesta se comprobó con un ejemplo ficticio;
+los registros permanecieron tras reiniciar la app, según confirmó el usuario.
+Detalle de las evidencias y sus límites al final de esta guía.
 
 ## Modelo distribuido
 
@@ -39,12 +41,13 @@ Render copia el archivo al construir la imagen. Al arrancar, la app lo carga
 sin entrenar ni acceder al snapshot. Generarlo es un proceso independiente
 que sí requiere train. No se reevalúa el test reservado para esta entrega.
 
-## Configuración prevista
+## Configuración del despliegue
 
 - Render: repositorio del proyecto, rama `feat/33-render-deployment` durante
-  la prueba previa a la PR; cambiar a `dev` solo después de revisión y merge.
+  la prueba previa a revisión; cambiar a `dev` solo después de revisión y merge.
   Docker, Frankfurt y plan Free.
-  Sin disco ni extras de pago. La capacidad en sus 512 MB sigue sin comprobarse.
+  Sin disco ni extras de pago. Se comprobó una sesión; no hay prueba de carga
+  que garantice capacidad con múltiples usuarios en sus 512 MB y 0,1 CPU.
 - Variable secreta `MONGODB_URI`: usuario de app con `readWrite` solo sobre
   `bcn_price_classifier`, incluyendo `/bcn_price_classifier` en la URI. Nunca
   el administrador. No publicar credenciales en Git, chat, capturas o logs.
@@ -52,8 +55,9 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
   entrenamiento al comando de inicio.
 - Autorizar en Atlas los rangos de IP de salida mostrados por Render para
   este servicio. La IP local no autoriza a Render. No abrir `0.0.0.0/0`.
-- Revisar el despliegue automático: publicar en la rama configurada podría
-  provocar un despliegue remoto. No cambiar otros servicios.
+- Auto-Deploy: **Off**, observado en la captura de configuración. No cambiar
+  otros servicios. Tras merge, cambiar la rama a `dev` y desplegar requiere
+  autorización separada; no es consecuencia de solicitar revisión.
 - Render Free puede suspenderse por inactividad. Atlas Free limita espacio
   y aplica condiciones de pausa. Persistencia no significa retención indefinida
   ni respaldo; no activar copias u opciones de pago sin autorización.
@@ -72,25 +76,35 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
    no incorporar raw ni secretos al contexto para resolverlo.
 3. **Publicación para pruebas:** commit y push de `feat/33-render-deployment`,
    cada operación con permiso explícito. Seleccionar esa rama en Render para
-   comprobar el despliegue antes de abrir la PR. No pulsar Deploy hasta que
+   comprobar el despliegue antes de solicitar la revisión final. No pulsar
+   Deploy hasta que
    el modelo esté disponible en la rama remota seleccionada. No integrar en
    `dev` sin revisión y autorización de merge.
-4. **Creación remota pendiente:** revisar Free, rama, despliegue automático y
+4. **Configuración remota, solo lectura si el servicio ya existe:** revisar
+   Free, rama, despliegue automático y
    variables secretas. Crear el servicio envía código y modelo a Render,
    consume cuota de construcción y puede exponer una URL pública. Requiere
    permiso. Consultar IP de salida y autorizarla en Atlas.
-5. **Flujo remoto pendiente:** comprobar despliegue y formulario en HTTPS.
+5. **Flujo remoto:** comprobar despliegue y formulario en HTTPS.
    Predecir con datos ficticios escribe en Atlas; enviar un precio ficticio
-   guarda una respuesta. Verificar recuentos, sin publicar documentos. Un
+   guarda una respuesta. Para reproducir el caso, usar 165 € por noche:
+   categoría real según los umbrales actuales, Medio; el acierto depende de
+   la categoría predicha, no de un resultado prefijado. En Data Explorer,
+   consultar `feedback` con `{"real_price": 165}`, localizar la respuesta de
+   esta prueba por su fecha y consultar `predictions` con su `prediction_id`.
+   Verificar el enlace, sin publicar documentos. Un
    HTTP 200 por sí solo no acredita el funcionamiento de la base.
-6. **Persistencia remota pendiente:** con permiso para interrumpir/reiniciar
-   la app, anotar recuentos, reiniciar solo ese servicio y consultar Atlas.
+6. **Persistencia remota:** con permiso para interrumpir/reiniciar
+   la app, anotar recuentos e identificador de prueba, usar Render → Manual
+   Deploy → Restart service, esperar a Live y consultar ambas colecciones
+   en Atlas con ese mismo `prediction_id`, sin enviar nuevas predicciones.
    Deben mantenerse los registros. No borrar el clúster ni los datos.
-7. **Cierre pendiente:** documentar URL, revisión y resultados comprobados.
+7. **Revisión humana pendiente:** contrastar URL, revisión y resultados documentados.
    Ante fallo, revisar errores sanitizados, credenciales, base y acceso de red.
    No imprimir secretos ni cambiar a CSV para ocultar un fallo de MongoDB.
 
-Esta preparación no acredita los pasos remotos ni da por terminada la issue.
+Estas verificaciones no autorizan aprobación, merge ni cambio de rama del
+servicio. La revisión humana y la integración en `dev` siguen pendientes.
 
 ## Validación local realizada
 
@@ -107,3 +121,29 @@ Esta preparación no acredita los pasos remotos ni da por terminada la issue.
 - La primera sonda manual buscaba el botón sin su icono y falló al localizarlo;
   corregida la sonda para el rótulo real, el flujo completo pasó sin cambios
   en la aplicación. No fue un defecto del artefacto.
+
+## Validación remota realizada
+
+- Capturas del usuario: Render indica despliegue Live de `657afa5` desde esta
+  rama, plan Free, Docker y URL HTTPS indicada. Auto-Deploy quedó en Off.
+- El usuario comprobó que el formulario abre y ejecutó una predicción
+  ficticia. Las primeras escrituras fallaron; una comprobación local segura
+  identificó rechazo de autenticación. Tras corregir las credenciales fuera
+  del repositorio, el usuario confirmó el guardado. No se registran valores
+  secretos ni se deduce qué contraseña se cambió.
+- Evidencia mostrada por el usuario en Atlas: una respuesta de 165 € con
+  categoría real Medio y `correct: true`, y su predicción enlazada por el
+  mismo `prediction_id`, categoría predicha Medio, XGBoost champion versión
+  `xgboost-trial34-6e9bc3e`. No se copian documentos, identificadores de sesión
+  ni credenciales a esta guía.
+- Tras el procedimiento guiado de reinicio de la app, el usuario confirmó
+  que ambos registros seguían presentes. Esa verificación manual no fue
+  ejecutada directamente por el agente en Atlas.
+- El agente consultó directamente el endpoint HTTPS `/_stcore/health` y
+  recibió **HTTP 200**, cuerpo `ok`. Esta lectura no prueba por sí sola el
+  guardado: la evidencia de Atlas procede de las comprobaciones anteriores.
+- No hay pruebas de carga, respaldo/restauración, retención prolongada ni
+  garantía de disponibilidad continua. La cuenta Free puede suspender la app
+  por inactividad. La base persistente tiene sus propios límites y política
+  de inactividad; guardar registros no los convierte en datos verificados
+  apropiados para reentrenar sin revisión.

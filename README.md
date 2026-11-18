@@ -133,7 +133,9 @@ necesitan el snapshot.
 La demo distribuye el champion revisado en `models/app_model.joblib`: no
 requiere datos raw ni entrenamiento para abrirla. Procedencia, integridad y
 preparación de Render con Atlas: [docs/render.md](docs/render.md).
-El despliegue público sigue pendiente; todavía no hay una URL verificada.
+**Demo pública:** [bcn-price-classifier.onrender.com](https://bcn-price-classifier.onrender.com).
+Render Free puede tardar en despertar tras inactividad. Las predicciones y
+respuestas se guardan en Atlas; usar entradas ficticias para probar la demo.
 
 Cada predicción y, si el usuario lo indica, su precio real por noche se
 guardan en MongoDB cuando se configura `MONGODB_URI`. Sin esa configuración

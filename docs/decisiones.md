@@ -23,7 +23,14 @@ entrega a generar otro modelo. El manifiesto registra huella, versión y
 dependencias; reemplazarlo requiere revisión y validación nuevas.
 
 Configuración, limitaciones y verificaciones numeradas: [Render](render.md).
-La conexión Render–Atlas, el uso real en Free y la URL pública siguen pendientes.
+Demo: https://bcn-price-classifier.onrender.com, desplegada desde `657afa5` en
+Render Free. El usuario ejecutó la predicción y respuesta ficticias y mostró
+los registros enlazados en Atlas; después confirmó que ambos seguían presentes
+tras reiniciar la app. El agente comprobó directamente HTTP 200 y `ok` en
+`/_stcore/health`. Son evidencias distintas: el agente no tiene acceso directo
+a Atlas. No se han probado carga concurrente, retención prolongada ni backups.
+Auto-Deploy está desactivado; pasar el servicio a `dev` tras la revisión y el
+merge requiere una acción remota separada y autorizada. No se cambia ahora.
 
 ## Resumen: diez reglas para empezar un modelo
 
