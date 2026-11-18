@@ -1,7 +1,6 @@
 # App + base de datos (#26).
 #
-# Antes de arrancar, genera el modelo (no está en Git):
-#   python -m src.train_app_model
+# Se utiliza el champion revisado distribuido con el repositorio (#33):
 #   docker compose up --build        # app en http://localhost:8501
 #   docker compose down              # para; los datos se conservan en los volúmenes
 #

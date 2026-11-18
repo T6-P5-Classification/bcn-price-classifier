@@ -4,6 +4,34 @@ Este documento describe el contrato compartido por los notebooks de modelos.
 Las funciones de `src/cleaning.py` y `src/preprocessing.py` son la fuente de
 verdad ejecutable: los notebooks las reutilizan, no duplican su lógica.
 
+## Distribución del modelo para la demo Render (#33)
+
+Se autoriza publicar el artefacto champion existente `models/app_model.joblib`
+con el repositorio para que Render construya la imagen sin raw ni entrenamiento.
+Esta decisión sustituye su exclusión anterior: solo se exceptúa ese archivo
+en `.gitignore`. Datos raw, secretos, registros de uso y otros modelos siguen
+fuera de la entrega. Publicarlo permite copias que una eliminación posterior
+no retira; no se cambia la visibilidad del repositorio desde esta tarea.
+
+Se conserva `xgboost-trial34-6e9bc3e`, sin reentrenar ni evaluar otra vez test.
+La procedencia y parámetros coinciden con el champion actual. Incluye sus
+transformaciones ajustadas y metadatos del formulario agregados por barrio;
+no es una auditoría formal de privacidad del modelo aprendido.
+El entrenador actual genera también el challenger; el artefacto distribuido
+solo contiene el champion y no habilita el experimento A/B. No se amplía esta
+entrega a generar otro modelo. El manifiesto registra huella, versión y
+dependencias; reemplazarlo requiere revisión y validación nuevas.
+
+Configuración, limitaciones y verificaciones numeradas: [Render](render.md).
+Demo: https://bcn-price-classifier.onrender.com, desplegada desde `657afa5` en
+Render Free. El usuario ejecutó la predicción y respuesta ficticias y mostró
+los registros enlazados en Atlas; después confirmó que ambos seguían presentes
+tras reiniciar la app. El agente comprobó directamente HTTP 200 y `ok` en
+`/_stcore/health`. Son evidencias distintas: el agente no tiene acceso directo
+a Atlas. No se han probado carga concurrente, retención prolongada ni backups.
+Auto-Deploy está desactivado; pasar el servicio a `dev` tras la revisión y el
+merge requiere una acción remota separada y autorizada. No se cambia ahora.
+
 ## Resumen: diez reglas para empezar un modelo
 
 1. **Carga común:** usar `load_train_test()`; no repetir limpieza, variables
@@ -773,8 +801,9 @@ está en `app/app_logic.py` para poder probarla sin interfaz.
   reglas de habitación y baño, rechazo de valores vacíos y lectura de
   etiquetas de texto y numéricas. No miden la calidad de las predicciones.
 
-**Límites:** `models/app_model.joblib` se genera localmente y no se sube a
-Git; la integración del champion y el despliegue van en #23 y #29/#33.
+**Límite original:** el modelo se generaba localmente y no se subía a Git.
+#33 sustituye esa exclusión para el champion revisado de la demo; véase la
+decisión de distribución al inicio de este documento.
 ## Análisis de errores vecinos y extremos (#17): alcance y discrepancia documentada
 
 El alcance confirmado analiza las cuatro configuraciones seleccionadas, sin
@@ -841,9 +870,9 @@ de la regresión logística provisional:
   resultado de test, aviso de champion frente a
   provisional y AppTest con un modelo de etiquetas numéricas.
 
-**Pendiente en #23:** el sistema de feedback. `models/app_model.joblib` sigue
-generándose localmente y no se sube a Git; su uso en Docker/Render se decide
-en #29/#33.
+**Estado original:** feedback y distribución del modelo quedaban pendientes.
+El feedback se integra en #23/#27. #33 acuerda distribuir el champion revisado
+con el código, sin entrenamiento al arrancar; véase la decisión al inicio.
 
 ## Predicciones y feedback (#23)
 
