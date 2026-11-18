@@ -922,22 +922,50 @@ donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
 (p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
 arrancar).
 
+## MongoDB para predicciones y feedback (#27)
+
+Se conserva la interfaz de `src/feedback_store.py` y sus campos; la app no
+incluye consultas ni credenciales directamente. Las operaciones MongoDB se
+encapsulan en `src/database.py`. Con `MONGODB_URI` configurado y sin un
+`directory=` explícito se usa MongoDB; sin URI se mantienen los CSV y la app
+lo indica visiblemente, según lo acordado. Un directorio explícito permite
+aislar pruebas y consumidores CSV locales. `FEEDBACK_DIR` solo configura CSV.
+
+MongoDB guarda las colecciones `predictions` y `feedback` con índices únicos
+en `prediction_id`. Se conserva la respuesta inicial ante envíos simultáneos.
+Los fallos se exponen como el mismo `StorageError`, sin mensajes internos ni
+credenciales, y no provocan una sustitución silenciosa por CSV. El artefacto
+y el protocolo de modelado no cambian. PyMongo ya estaba en las dependencias
+generales; se añade la misma versión a las dependencias mínimas de Docker.
+
+Los CSV anteriores no se copian, mezclan ni borran automáticamente. Atlas,
+credenciales remotas y configuración de servicios de pago quedan fuera de
+esta entrega (#28). Se mantiene el contrato para las tareas de métricas,
+reentrenamiento, variantes y drift sin implementar esas tareas aquí. Las
+lecturas siguen cargando el historial completo; grandes volúmenes requieren
+otra estrategia. No se promete entrega exactamente una vez ante cortes de
+red, aunque la unicidad evita dos respuestas para una predicción.
+
+Método, limitaciones, efectos de cada comprobación y pasos numerados:
+[MongoDB](mongodb.md). La automatización del Project no está integrada en
+esta base y no se modifica su configuración desde esta issue.
+
 ## Docker Compose: app + base de datos (#26)
 
 `docker-compose.yml` arranca dos servicios:
 
-- **`app`**: la imagen de #29. `FEEDBACK_DIR=/app/data/feedback` en el volumen
-  `feedback-data`: las predicciones y respuestas (CSV de #23) se conservan al
-  parar, recrear o reconstruir el contenedor. Arranca cuando MongoDB está sano
+- **`app`**: la imagen de #29. Mantiene `FEEDBACK_DIR=/app/data/feedback`
+  en el volumen `feedback-data` para conservar los CSV anteriores. Desde #27,
+  `MONGODB_URI` selecciona MongoDB para las nuevas operaciones; esos CSV no se
+  migran ni mezclan automáticamente. Arranca cuando MongoDB está sano
   (`depends_on: service_healthy`).
 - **`mongo`**: `mongo:7.0.14` (versión exacta), datos en el volumen
   `mongo-data`, healthcheck con `mongosh` y **sin puerto publicado**: solo la
   app puede conectarse, por la red interna de Compose
   (`MONGODB_URI=mongodb://mongo:27017/bcn_price_classifier`).
 
-**Alcance:** la app todavía no escribe en MongoDB; eso es #27, que solo tiene
-que leer `MONGODB_URI` y sustituir el almacenamiento de
-`src/feedback_store.py` (ver `docs/feedback.md`). Para uso local sin
+**Alcance:** #26 preparó el servidor y la conexión; #27 integra el guardado
+desde la interfaz `src/feedback_store.py` (ver `docs/feedback.md`). Para uso local sin
 autenticación; en un despliegue real (#28, MongoDB Atlas) la URI con
 credenciales iría en un `.env` fuera de Git.
 

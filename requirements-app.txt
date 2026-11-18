@@ -6,3 +6,4 @@ scikit-learn==1.9.1
 xgboost-cpu==3.4.1  # mismo xgboost sin librerías de GPU (imagen mucho más pequeña)
 joblib==1.6.0
 streamlit==1.67.0
+pymongo==4.19.0
