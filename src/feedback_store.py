@@ -6,13 +6,10 @@ Contract for the issues that use this data (see docs/feedback.md):
 - #25 live metrics                             -> load_predictions(), load_labelled()
 - #36 data drift                               -> load_predictions() (the 23 inputs)
 - #35 A/B testing                              -> "variant" column
-- #27 MongoDB                                  -> replace the private helpers
-  ``_lock``, ``_append`` and ``_read`` with MongoDB; the public functions,
-  columns and ``StorageError`` stay the same, so the code of the other issues
-  does not change. MongoDB must keep one feedback per prediction (e.g. a
-  unique index on ``feedback.prediction_id``).
+- #27 MongoDB                                  -> src.database, selected by
+  MONGODB_URI. Public functions, columns and StorageError stay the same.
 
-Two tables (CSV files now, MongoDB collections later):
+Two tables (CSV when MongoDB is not configured, otherwise MongoDB collections):
 
 - ``predictions``: one row per prediction shown in the app.
 - ``feedback``: at most one row per prediction, when the user gives the real
@@ -35,6 +32,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.cleaning import MODEL_FEATURES
+from src.database import StorageError, mongo_store
 from src.preprocessing import TARGET_LABELS, create_price_target
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,12 +69,19 @@ LOCK_TIMEOUT = 10.0   # seconds waiting for another writer
 STALE_LOCK = 60.0     # a lock older than this was left by a crashed process
 
 
-class StorageError(Exception):
-    """The predictions/feedback storage could not be read or written.
+def storage_backend(directory: str | Path | None = None) -> str:
+    """An explicit directory selects CSV; otherwise MONGODB_URI selects MongoDB.
 
-    Common to every backend (CSV now, MongoDB in #27): the app catches it and
-    keeps showing the result without confirming a failed save.
+    Explicit directories keep isolated callers/tests local even when the app
+    environment contains a MongoDB URI. FEEDBACK_DIR only configures CSV paths.
     """
+    if directory is not None:
+        return "csv"
+    return "mongodb" if os.environ.get("MONGODB_URI", "").strip() else "csv"
+
+
+def _mongo():
+    return mongo_store(os.environ["MONGODB_URI"].strip())
 
 
 def storage_dir(directory: str | Path | None = None) -> Path:
@@ -88,7 +93,7 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-# --- Storage backend: the only part #27 replaces with MongoDB ---------------
+# --- Storage backends: preserve the public contract -------------------------
 
 @contextmanager
 def _lock(directory: str | Path | None = None):
@@ -98,6 +103,11 @@ def _lock(directory: str | Path | None = None):
     and writing feedback happen inside it, so two simultaneous answers cannot
     both be saved.
     """
+    if storage_backend(directory) == "mongodb":
+        # A unique database index protects concurrent processes/instances.
+        # A CSV file lock would only coordinate one machine, not MongoDB.
+        yield
+        return
     folder = storage_dir(directory)
     try:
         folder.mkdir(parents=True, exist_ok=True)
@@ -129,6 +139,9 @@ def _lock(directory: str | Path | None = None):
 
 
 def _append(table: str, row: dict, directory: str | Path | None = None) -> None:
+    if storage_backend(directory) == "mongodb":
+        _mongo().append(table, {column: row[column] for column in COLUMNS[table]})
+        return
     path = storage_dir(directory) / f"{table}.csv"
     try:
         pd.DataFrame([row], columns=COLUMNS[table]).to_csv(
@@ -139,6 +152,8 @@ def _append(table: str, row: dict, directory: str | Path | None = None) -> None:
 
 
 def _read(table: str, directory: str | Path | None = None) -> pd.DataFrame:
+    if storage_backend(directory) == "mongodb":
+        return _mongo().read(table, COLUMNS[table])
     path = storage_dir(directory) / f"{table}.csv"
     if not path.exists():
         return pd.DataFrame(columns=COLUMNS[table])
@@ -208,8 +223,8 @@ def save_feedback(
 ) -> dict:
     """Store the real price of a prediction (once) and return the saved row.
 
-    The check "no answer yet" and the write happen under the same lock, so
-    two simultaneous answers for one prediction cannot both be saved.
+    CSV uses one file lock for check/write. MongoDB uses a unique index for
+    the final insert, so simultaneous answers cannot both be saved.
     """
     with _lock(directory):
         predictions = _read(PREDICTIONS, directory)

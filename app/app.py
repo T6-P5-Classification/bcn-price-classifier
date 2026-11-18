@@ -23,7 +23,9 @@ from app_logic import (
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # for src.feedback_store
-from src.feedback_store import StorageError, save_feedback, save_prediction  # noqa: E402
+from src.feedback_store import (  # noqa: E402
+    StorageError, save_feedback, save_prediction, storage_backend,
+)
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -139,6 +141,16 @@ ranges = {
 
 st.title("🏠 ¿En qué rango de precio está tu alojamiento en Barcelona?", anchor=False)
 st.caption("Describe tu anuncio de Airbnb y lo clasificamos como Económico, Medio o Premium.")
+if storage_backend() == "csv":
+    st.info(
+        "Almacenamiento: CSV local. MongoDB no está configurado; "
+        "las predicciones y respuestas se guardarán en archivos locales."
+    )
+else:
+    st.caption(
+        "Almacenamiento configurado: MongoDB. "
+        "Si no está disponible, se avisará sin cambiar a CSV."
+    )
 
 form_col, result_col = st.columns([3, 2], gap="large")
 
