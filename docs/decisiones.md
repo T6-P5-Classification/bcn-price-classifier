@@ -1034,11 +1034,13 @@ la CV no resuelve: ¿acierta alguno más con anuncios nuevos?
 |---|---|
 | Challenger | LightGBM con los parámetros de su prueba de Optuna seleccionada (#21), ajustado con **todo train** en `src/train_app_model.py`. Se comprueba contra `lightgbm_comparison.csv` y que se seleccionó con el mismo raw. **No se evalúa en test**: el test se usó una vez, solo para el champion. |
 | Asignación | Al abrir la app, sorteo aleatorio por sesión (`AB_SPLIT`, por defecto 0,5). Se guarda en `st.session_state`: la misma sesión siempre usa el mismo modelo. Sin challenger en el artefacto, o con un `AB_SPLIT` inválido, solo responde el champion. |
-| Registro | Cada predicción guarda `variant` y `model_name` (contrato de `docs/feedback.md`, sin columnas nuevas). |
+| Registro | Cada predicción guarda `variant`, `model_name`, `model_version` y un `session_id` aleatorio y anónimo (contrato de `docs/feedback.md`). `session_id` es opcional: los CSV y documentos MongoDB anteriores siguen leyéndose (vacío) y escribiéndose. |
+| Experimento | Solo cuentan las respuestas de los **dos modelos del artefacto** (nombre y versión de champion y challenger). Las de otros modelos o versiones (p. ej. el provisional) quedan fuera y se informa cuántas. |
+| Unidad | La **sesión**, porque el modelo se asigna por sesión. Cuenta la primera respuesta de cada sesión; las repeticiones y las respuestas sin `session_id` quedan fuera y se informa cuántas. Sin esto, una persona que repite el formulario 100 veces parecería 100 personas. |
 | Análisis | `src/ab_test.py` compara el % de aciertos (`correct`) de cada variante con un intervalo del 95 % de la diferencia (ajuste de Agresti-Caffo, estable con pocos datos o aciertos del 0 %/100 %). |
-| Decisión | Menos de **100 respuestas** por modelo: datos insuficientes. Intervalo que incluye 0: sin diferencia, se mantiene el champion. Solo si excluye 0 a favor del challenger se propone sustituirlo, como **decisión del equipo** tras revisar los mínimos de calidad (#32); no hay cambio automático. |
+| Decisión | Menos de **100 sesiones** por modelo: datos insuficientes. Intervalo que incluye 0: sin diferencia, se mantiene el champion. Solo si excluye 0 a favor del challenger se propone sustituirlo, como **decisión del equipo** tras revisar los mínimos de calidad (#32); no hay cambio automático. |
 
-**Por qué 100 respuestas:** con 100 por grupo, la incertidumbre de la
+**Por qué 100 sesiones:** con 100 por grupo, la incertidumbre de la
 diferencia ronda ±12 puntos; por debajo, casi cualquier diferencia puede ser
 azar. Es un umbral práctico, no un cálculo de potencia. Con la diferencia
 observada en CV (≈0,01 puntos), distinguir los dos modelos exigiría muchísimas
@@ -1048,7 +1050,10 @@ más respuestas: el resultado esperable es «sin diferencia».
 la app completa (`tests/test_app.py`): reparto ≈50 %, sesión estable,
 `variant` guardada, detalles del challenger sin métricas de test del champion,
 y decisiones con pocos datos, diferencia pequeña, diferencia clara y 100 %
-frente a 100 %. Imagen Docker construida y ambos modelos predicen dentro.
+frente a 100 %. Tras la revisión: respuestas antiguas de otra versión no
+cambian un empate, 100 repeticiones de dos sesiones cuentan como dos
+sesiones, y los CSV y documentos MongoDB sin `session_id` siguen funcionando
+(tests de integración con MongoDB 7.0.14 local). Imagen Docker construida y ambos modelos predicen dentro.
 
 **Límites:**
 - Aún **no hay usuarios reales**: se entrega el mecanismo, no un resultado.
@@ -1059,4 +1064,5 @@ frente a 100 %. Imagen Docker construida y ambos modelos predicen dentro.
 - Se compara el acierto de la clase, no el F1 macro; con pocas respuestas
   por clase el F1 sería muy inestable.
 - Los modelos del artefacto se reentrenan con `python -m src.train_app_model`;
-  `model_version` permite separar respuestas de versiones distintas.
+  al cambiar de versión empieza un experimento nuevo (las respuestas
+  anteriores no se mezclan).

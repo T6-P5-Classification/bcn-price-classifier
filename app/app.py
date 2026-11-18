@@ -6,6 +6,7 @@ Run from the repo root:  streamlit run app/app.py
 import os
 import random
 import sys
+import uuid
 from pathlib import Path
 
 import joblib
@@ -137,6 +138,9 @@ if "variant" not in st.session_state:
         print(f"A/B test disabled: {error}", file=sys.stderr)
         share = 0.0
     st.session_state["variant"] = assign_variant(random.random(), share)
+    # Anonymous, random id of this session: the A/B analysis counts each
+    # session once, so repeating the form does not inflate the evidence.
+    st.session_state["session_id"] = uuid.uuid4().hex
 model_artifact = variant_artifact(artifact, st.session_state["variant"])
 low, high = artifact["thresholds"]["lower"], artifact["thresholds"]["upper"]
 def euros(value: float) -> str:
@@ -244,6 +248,7 @@ with result_col:
                 model_version=model_artifact.get("model_version", "desconocida"),
                 thresholds=artifact["thresholds"],
                 variant=st.session_state["variant"],  # A/B test (#35)
+                session_id=st.session_state["session_id"],
             )
         except StorageError:
             prediction_id = None  # storage unavailable: still show the result

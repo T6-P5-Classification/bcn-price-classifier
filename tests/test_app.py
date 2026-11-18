@@ -460,8 +460,11 @@ def test_ab_variant_stays_the_same_during_a_session(run_app, tmp_path, monkeypat
         next(n for n in at.number_input if n.label == "Camas").set_value(beds)
         at.button[0].click().run()
         assert not at.exception and at.session_state["variant"] == variant
-    names = load_predictions(tmp_path / "feedback")["model_name"]
-    assert len(names) == 3 and names.nunique() == 1
+    stored = load_predictions(tmp_path / "feedback")
+    assert len(stored) == 3 and stored["model_name"].nunique() == 1
+    # One anonymous session id for the whole session, so the A/B analysis counts it once.
+    assert stored["session_id"].nunique() == 1
+    assert stored["session_id"].iloc[0] == at.session_state["session_id"]
 
 
 def test_challenger_details_do_not_claim_it_was_chosen_or_tested(run_app, monkeypatch):
