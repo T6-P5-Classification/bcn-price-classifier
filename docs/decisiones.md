@@ -957,10 +957,10 @@ No usa precios ni predicciones: avisa antes de que llegue feedback.
 
 | Paso | Cómo |
 |---|---|
-| Medida | **PSI** por variable: compara el % de anuncios por intervalo. Numéricas: deciles de train. Categóricas: una categoría por intervalo, más «categoría nueva» (no vista en train). Los vacíos tienen su propio intervalo. |
+| Medida | **PSI** por variable: compara el % de anuncios por intervalo. Numéricas: deciles de train; con 10 valores distintos o menos (sí/no, recuentos pequeños), un intervalo por valor más «valor nuevo», porque con deciles un 0/1 desequilibrado quedaría en un solo intervalo. Categóricas: una categoría por intervalo, más «categoría nueva» (no vista en train). Los vacíos tienen su propio intervalo. |
 | Lectura | < 0,10 estable; 0,10–0,25 moderado; ≥ 0,25 alto. Son umbrales habituales, no un test estadístico. |
 | Alerta | **ALERTA** si una variable es «alto»; **AVISO** si una de las 3 más importantes del champion (#16: `minimum_nights`, `accommodates`, `latitude`) es «moderado». |
-| Detalle | También se calcula el PSI **sin vacíos**: separa si cambian los valores o solo con qué frecuencia el campo está vacío. |
+| Detalle | También se calcula el PSI **sin vacíos**: separa si cambian los valores o solo con qué frecuencia el campo está vacío. Si un lado no tiene ningún valor, la alerta dice «valores no comparables». |
 
 **Resultado (junio 2026 = 24/06, 13.355 anuncios con precio, frente a
 10.088 de train):** 21 de 23 variables estables (PSI ≤ 0,012). Dos alertas:
@@ -982,7 +982,7 @@ comprobación debe detectar.
 
 **Validación:** `tests/test_drift.py` con datos sintéticos: misma población
 sin alertas, desplazamiento numérico, cambio de proporciones, categoría nueva,
-vacíos separados de valores, intervalos vacíos, umbrales, aviso solo en
+vacíos separados de valores, variable totalmente vacía, sí/no muy desequilibrado, referencia constante, intervalos vacíos, umbrales, aviso solo en
 variables clave y esquema incompleto. Resultado guardado en
 `docs/results/drift_2026-06-24.csv` y `.json` (con el sha256 de ambos raw).
 

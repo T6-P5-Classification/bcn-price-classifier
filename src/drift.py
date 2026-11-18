@@ -11,7 +11,9 @@ of listings in each bin:
 
     PSI = sum over bins of (current% - reference%) * ln(current% / reference%)
 
-- Numeric variables: bins at the reference deciles.
+- Numeric variables: bins at the reference deciles; with 10 distinct values
+  or fewer (yes/no flags, small counts), one bin per value plus one for
+  values never seen in the reference.
 - Categorical variables: one bin per reference category, plus one bin for
   categories never seen in the reference (e.g. a new property type).
 - Missing values always have their own bin.
@@ -94,9 +96,25 @@ def psi_from_shares(reference: np.ndarray, current: np.ndarray) -> float:
 
 
 def numeric_bins(reference: pd.Series, current: pd.Series, n_bins: int = N_BINS):
-    """Bin labels of both samples, with edges at the reference quantiles."""
+    """Bin labels of both samples.
+
+    Few distinct reference values (yes/no flags, constants, small counts): one
+    bin per value plus one for values never seen. Quantile edges would merge
+    them: with 95 % ones and 5 % zeros every decile is 1, so 0 and 1 would
+    share a bin and a full change from 1 to 0 would give PSI 0.
+    Otherwise: edges at the reference deciles.
+    """
     values = reference.dropna()
-    inner = np.unique(np.quantile(values, np.linspace(0, 1, n_bins + 1)[1:-1])) if len(values) else []
+    distinct = np.unique(values)
+    if len(distinct) <= n_bins:
+        known = distinct.tolist()
+
+        def label_values(series: pd.Series) -> pd.Series:
+            text = series.astype(object).where(series.isin(known), NEW)
+            return text.where(series.notna(), MISSING)
+
+        return label_values(reference), label_values(current), [*known, NEW, MISSING]
+    inner = np.unique(np.quantile(values, np.linspace(0, 1, n_bins + 1)[1:-1]))
     edges = [-np.inf, *inner, np.inf]
 
     def label(series: pd.Series) -> pd.Series:
@@ -177,7 +195,11 @@ def alerts(report: pd.DataFrame) -> list[str]:
         kind = "ALERTA" if row.level == "alto" else "AVISO"
         key = ", variable clave del modelo," if row.key_feature else ""
         detail = f"PSI {row.psi:.2f}"
-        if level(row.psi_without_missing) == "estable" and row.reference_missing != row.current_missing:
+        if not np.isfinite(row.psi_without_missing):
+            # One side has no values at all: nothing says whether they changed.
+            detail += (f"; vacíos {row.reference_missing:.0%} -> {row.current_missing:.0%}, "
+                       "valores no comparables")
+        elif level(row.psi_without_missing) == "estable" and row.reference_missing != row.current_missing:
             # The values look alike: what changed is how often the field is empty.
             detail += (f"; cambian sobre todo los vacíos ({row.reference_missing:.0%} -> "
                        f"{row.current_missing:.0%}), no los valores (PSI sin vacíos "
@@ -218,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
             "reference": {"file": str(RAW_DATA_PATH.relative_to(ROOT)), "rows": "train",
                           "n": len(reference), "raw_sha256": _sha256(RAW_DATA_PATH)},
             "current": {"file": args.snapshot.name, "n": len(current), "raw_sha256": _sha256(args.snapshot)},
-            "method": {"metric": "PSI", "numeric_bins": f"{N_BINS} reference quantiles",
+            "method": {"metric": "PSI", "numeric_bins": f"{N_BINS} reference quantiles; one bin per value if <= {N_BINS} distinct values",
                        "epsilon": EPSILON, "moderate": MODERATE, "large": LARGE},
             "key_features": key_features(),
             "alerts": messages,

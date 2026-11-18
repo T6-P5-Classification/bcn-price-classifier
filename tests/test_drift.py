@@ -83,7 +83,26 @@ def test_psi_is_finite_with_empty_bins_and_needs_data():
         psi(pd.Series([], dtype=float), pd.Series([1.0]))
 
 
-@pytest.mark.parametrize("value, expected", [(0.0, "estable"), (0.0999, "estable"),
+def test_full_change_of_an_imbalanced_yes_no_variable_is_large():
+    """Review of #80: deciles put 0 and 1 in the same bin and gave PSI 0."""
+    reference = pd.Series([1] * 950 + [0] * 50)
+    assert psi(reference, pd.Series([0] * 1000)) >= LARGE
+    assert psi(reference, pd.Series([1] * 950 + [0] * 50)) == pytest.approx(0)
+
+
+def test_constant_reference_detects_values_never_seen():
+    reference = pd.Series([1.0] * 1000)
+    assert psi(reference, pd.Series([1.0] * 1000)) == pytest.approx(0)
+    assert psi(reference, pd.Series([1.0] * 500 + [3.0] * 500)) >= LARGE
+
+
+def test_small_counts_keep_one_bin_per_value():
+    reference = pd.Series([1] * 700 + [2] * 200 + [3] * 100)  # e.g. bedrooms
+    assert psi(reference, pd.Series([1] * 400 + [2] * 400 + [3] * 200)) >= LARGE
+    assert psi(reference, pd.Series([1] * 690 + [2] * 210 + [3] * 100)) < MODERATE
+
+
+@pytest.mark.parametrize("value, expected",[(0.0, "estable"), (0.0999, "estable"),
                                              (0.10, "moderado"), (0.2499, "moderado"), (0.25, "alto")])
 def test_levels_follow_the_usual_thresholds(value, expected):
     assert level(value) == expected
@@ -116,6 +135,16 @@ def test_alerts_explain_whether_values_or_missing_values_changed():
     assert "vacíos (0% -> 30%)" in by_feature["minimum_nights"]
     assert "variable clave" in by_feature["minimum_nights"]
     assert "vacíos" not in by_feature["bedrooms"]
+
+
+def test_a_completely_empty_variable_is_not_called_unchanged():
+    """Review of #80: with no values left, nothing says whether they changed."""
+    reference, current = listings(seed=0), listings(seed=1)
+    current["minimum_nights"] = np.nan
+    message = next(m for m in alerts(drift_report(reference, current, key=[]))
+                   if "minimum_nights" in m)
+    assert "valores no comparables" in message
+    assert "no los valores" not in message and "nan" not in message
 
 
 def test_moderate_drift_warns_only_for_key_variables():
