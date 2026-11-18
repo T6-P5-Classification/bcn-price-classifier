@@ -889,6 +889,28 @@ noche** que indica el anfitrión. El contrato completo está en
 **Límites:** respuestas voluntarias y no verificadas; en Render el disco no
 es permanente, por lo que para conservar datos hace falta MongoDB.
 
+## Datos nuevos para reentrenar (#24)
+
+`src/new_data.py` recoge las predicciones con precio real a través de
+`src.feedback_store.load_labelled()` (CSV o MongoDB según configuración) y no
+lee ni escribe los archivos de almacenamiento directamente.
+
+- **Entrada:** las 23 variables de `MODEL_FEATURES` y `real_price`; se conserva
+  el precio, no solo la clase, para recalcular umbrales con datos nuevos.
+- **Validación:** `validate_new_data()` exige las 23 variables y un precio real
+  finito mayor que 0.
+- **Umbrales:** `compute_new_thresholds()` calcula `lower` y `upper` con
+  `compute_target_thresholds()`. Si no hay suficientes precios nuevos, se
+  reutilizan los umbrales guardados en la predicción.
+- **Preparación:** `prepare_new_data()` devuelve una tabla con las 23
+  variables, `real_price` y el target derivado del precio; con
+  `include_target=False` devuelve solo variables y precio, sin calcular ni
+  exigir umbrales ni consistencia de históricos. `new_training_data()`
+  separa `(X, y)`. Con almacenamiento vacío devuelve tablas vacías con las
+  columnas del contrato.
+- **Límites:** las respuestas son voluntarias y el precio no se verifica; el
+  reentrenamiento y la sustitución automática quedan en #34.
+
 ## Dockerfile de la app (#29)
 
 - **Base `python:3.12-slim`** (versión del proyecto) y `libgomp1`, que XGBoost
