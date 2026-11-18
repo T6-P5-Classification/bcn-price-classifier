@@ -903,7 +903,9 @@ lee ni escribe los archivos de almacenamiento directamente.
   `compute_target_thresholds()`. Si no hay suficientes precios nuevos, se
   reutilizan los umbrales guardados en la predicción.
 - **Preparación:** `prepare_new_data()` devuelve una tabla con las 23
-  variables, `real_price` y el target derivado del precio; `new_training_data()`
+  variables, `real_price` y el target derivado del precio; con
+  `include_target=False` devuelve solo variables y precio, sin calcular ni
+  exigir umbrales ni consistencia de históricos. `new_training_data()`
   separa `(X, y)`. Con almacenamiento vacío devuelve tablas vacías con las
   columnas del contrato.
 - **Límites:** las respuestas son voluntarias y el precio no se verifica; el

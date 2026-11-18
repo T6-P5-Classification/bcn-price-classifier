@@ -120,18 +120,17 @@ def prepare_new_data(
             columns.append(target_column)
         return pd.DataFrame(columns=list(dict.fromkeys(columns)))
 
-    if thresholds is None:
-        try:
-            thresholds = compute_new_thresholds(frame["real_price"])
-        except ValueError:
-            historical = _historical_thresholds(frame)
-            if historical is None:
-                raise
-            thresholds = historical
-    thresholds = {"lower": float(thresholds["lower"]), "upper": float(thresholds["upper"])}
-
     result = frame.copy()
     if include_target:
+        if thresholds is None:
+            try:
+                thresholds = compute_new_thresholds(frame["real_price"])
+            except ValueError:
+                historical = _historical_thresholds(frame)
+                if historical is None:
+                    raise
+                thresholds = historical
+        thresholds = {"lower": float(thresholds["lower"]), "upper": float(thresholds["upper"])}
         result[target_column] = create_price_target(frame["real_price"], thresholds)
 
     columns = list(MODEL_FEATURES) + ["real_price"]

@@ -237,3 +237,38 @@ def test_prepare_empty_respects_include_target(tmp_path):
     prepared = prepare_new_data(tmp_path, include_target=False)
     assert prepared.empty
     assert "price_segment" not in prepared.columns
+
+
+def test_prepare_single_row_no_historical_thresholds_without_target():
+    frame = pd.DataFrame(
+        {**{column: [1] for column in MODEL_FEATURES}, "real_price": [180.0]}
+    )
+    prepared = prepare_new_data(frame, include_target=False)
+    assert len(prepared) == 1
+    assert set(MODEL_FEATURES).issubset(prepared.columns)
+    assert prepared["real_price"].tolist() == [180.0]
+    assert "price_segment" not in prepared.columns
+
+
+def test_prepare_ignores_differing_historical_thresholds_without_target():
+    frame = pd.DataFrame(
+        {
+            **{column: [1, 1] for column in MODEL_FEATURES},
+            "real_price": [180.0, 300.0],
+            "threshold_lower": [100.0, 122.0],
+            "threshold_upper": [200.0, 249.72333333333327],
+        }
+    )
+    prepared = prepare_new_data(frame, include_target=False)
+    assert len(prepared) == 2
+    assert set(MODEL_FEATURES).issubset(prepared.columns)
+    assert prepared["real_price"].tolist() == [180.0, 300.0]
+    assert "price_segment" not in prepared.columns
+
+
+def test_prepare_single_row_no_historical_thresholds_with_target_raises():
+    frame = pd.DataFrame(
+        {**{column: [1] for column in MODEL_FEATURES}, "real_price": [180.0]}
+    )
+    with pytest.raises(ValueError, match="three prices"):
+        prepare_new_data(frame)
