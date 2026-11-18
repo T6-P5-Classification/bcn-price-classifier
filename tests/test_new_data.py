@@ -181,3 +181,59 @@ def test_thresholds_are_recomputed_from_prices(tmp_path):
     thresholds = compute_new_thresholds(frame["real_price"])
     prepared = prepare_new_data(frame, thresholds=thresholds)
     assert prepared["price_segment"].notna().all()
+
+
+def test_prepare_rejects_invalid_input_type():
+    with pytest.raises(ValueError, match="DataFrame, a path, or None"):
+        prepare_new_data([1, 2, 3])
+
+
+def test_validate_converts_string_prices():
+    frame = pd.DataFrame({**{column: [1, 1, 1] for column in MODEL_FEATURES},
+                          "real_price": ["100", "200", "300"]})
+    result = validate_new_data(frame)
+    assert pd.api.types.is_numeric_dtype(result["real_price"])
+    assert result["real_price"].tolist() == [100.0, 200.0, 300.0]
+
+
+def test_validate_rejects_non_numeric_prices():
+    frame = pd.DataFrame({**{column: [1] for column in MODEL_FEATURES},
+                          "real_price": ["no-es-precio"]})
+    with pytest.raises(ValueError, match="greater than 0"):
+        validate_new_data(frame)
+
+
+def test_prepare_raises_when_historical_thresholds_differ():
+    frame = pd.DataFrame({**{column: [1, 1] for column in MODEL_FEATURES},
+                          "real_price": [180.0, 180.0],
+                          "threshold_lower": [100.0, 122.0],
+                          "threshold_upper": [200.0, 249.72333333333327]})
+    with pytest.raises(ValueError, match="historical thresholds differ"):
+        prepare_new_data(frame)
+
+
+def test_prepare_row_order_invariant_with_identical_historical_thresholds():
+    frame = pd.DataFrame({**{column: [1, 1] for column in MODEL_FEATURES},
+                          "real_price": [180.0, 180.0],
+                          "threshold_lower": [122.0, 122.0],
+                          "threshold_upper": [249.72333333333327, 249.72333333333327]})
+    first = prepare_new_data(frame)
+    second = prepare_new_data(frame.iloc[::-1].reset_index(drop=True))
+    pd.testing.assert_frame_equal(
+        first.sort_values("real_price").reset_index(drop=True),
+        second.sort_values("real_price").reset_index(drop=True),
+    )
+
+
+def test_prepare_empty_has_prepared_schema(tmp_path):
+    prepared = prepare_new_data(tmp_path)
+    assert prepared.empty
+    assert set(MODEL_FEATURES).issubset(prepared.columns)
+    assert "real_price" in prepared.columns
+    assert "price_segment" in prepared.columns
+
+
+def test_prepare_empty_respects_include_target(tmp_path):
+    prepared = prepare_new_data(tmp_path, include_target=False)
+    assert prepared.empty
+    assert "price_segment" not in prepared.columns
