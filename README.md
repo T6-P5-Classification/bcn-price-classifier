@@ -267,6 +267,13 @@ consulta su guía y conserva copias antes de repetir. No ejecutar toda la carpet
 de notebooks indiscriminadamente. El notebook MLP está vacío; no es un quinto
 modelo entrenado o desplegado.
 
+El notebook candidato XGBoost usa 40 pruebas de Optuna y diagnósticos fuera de fold
+solo sobre train: [ejecución y resultados](docs/xgboost.md). La evaluación
+final posterior del champion ya está registrada en
+[champion_test.json](docs/results/champion_test.json); no se repite al
+ejecutar el candidato.
+La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
+
 `python -m src.train_app_model` ajusta modelos con train y **reemplaza**
 `models/app_model.joblib`; actualmente genera champion y challenger. No evalúa
 test de nuevo, aunque lee métricas históricas verificadas. No ejecutarlo como
@@ -478,7 +485,8 @@ resultado registrado, no una garantía para cualquier entorno o revisión.
 
 ### Verificación documental de esta entrega
 
-En la rama `docs/41-readme-current-deployment` (base `dev` en `24e443b`):
+En la rama `docs/41-readme-current-deployment` (base inicial `dev` en `24e443b`,
+actualizada con `dev` en `936a397` para resolver conflictos documentales):
 
 1. **Solo lectura:** comprobar enlaces y que instalación, datos, uso, modelo,
    evaluación, almacenamiento y despliegue están identificados. No hay secretos
@@ -494,6 +502,10 @@ En la rama `docs/41-readme-current-deployment` (base `dev` en `24e443b`):
 5. Ante fallo, distinguir entorno incompleto, enlace documental incorrecto y
    defecto de la app. No borrar datos, regenerar artefactos, desactivar tests
    ni ampliar permisos para conseguir un resultado verde.
+6. **Solo lectura local:** comprobar que no quedan marcadores de conflicto,
+   que se conserva la aclaración de XGBoost y que el enlace al informe técnico
+   de la tabla siguiente abre `docs/informe_tecnico.md`. La explicación del
+   panel de feedback debe seguir en «Seguimiento y datos nuevos», sin duplicarse.
 
 Más procedimientos: [pruebas manuales](docs/pruebas_manuales.md) y
 [contrato del modelo](docs/test_model.md), cuyas secciones históricas deben
@@ -533,6 +545,7 @@ docs/         Decisiones, guías y resultados agregados
 
 | Tema | Referencia |
 |---|---|
+| Informe técnico del proyecto | [Problema, datos, evaluación y resultados](docs/informe_tecnico.md) |
 | Acuerdos y salvedades de modelado | [Decisiones](docs/decisiones.md) |
 | Guía de comprobación por issue | [Pruebas manuales](docs/pruebas_manuales.md) |
 | EDA por distrito y habitación | [EDA](docs/eda_distritos_room_type.md) |
