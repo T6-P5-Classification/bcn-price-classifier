@@ -1,7 +1,7 @@
 # App Streamlit con el champion XGBoost (#29).
 #
-# El modelo no está en Git: genéralo antes de construir la imagen
-#   python -m src.train_app_model
+# Champion revisado distribuido en models/app_model.joblib (#33).
+# No se entrena al construir ni al arrancar. Véase docs/render.md.
 #   docker build -t bcn-price-classifier .
 #   docker run -p 8501:8501 bcn-price-classifier
 FROM python:3.12-slim

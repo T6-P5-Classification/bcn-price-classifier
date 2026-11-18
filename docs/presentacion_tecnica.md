@@ -1,9 +1,19 @@
 # Presentación técnica: Barcelona Airbnb Price Classifier
 
 Presentación en español de aproximadamente 20 minutos. Notas actualizadas con
-la evidencia integrada en `dev`, base `4b5f88d`, sin repetir test.
+la evidencia integrada en `dev`, base `fa1a9d4`, sin repetir la evaluación
+del test reservado.
 
 [Abrir Google Slides](https://docs.google.com/presentation/d/1zSvjH1LRa9Q_JK8cMZpOBaoV3WFl84wj65ChRRJQVkU/edit)
+
+**Estado de esta revisión:** se revisa el guion versionado, no el contenido
+actual de Google Slides. El enlace no concede acceso público. El equipo debe
+contrastar y sincronizar las 16 diapositivas y sus notas antes de presentar;
+no se han cambiado permisos ni escrito en Drive desde esta revisión.
+
+Las referencias fijadas a `4b5f88d` conservan la procedencia histórica del
+protocolo y los resultados. El estado operativo actualizado se contrasta con
+las fuentes locales de las secciones 13 y 15, sobre la base `fa1a9d4`.
 
 | Diapositiva | Tema | Tiempo orientativo |
 |---|---|---|
@@ -173,13 +183,14 @@ Fuente: [docs/results/xgboost_details.json](https://github.com/T6-P5-Classificat
 
 Formulario con las 23 entradas
 Segmento y probabilidades estimadas
-Champion XGBoost y feedback local
+Champion XGBoost y feedback en Atlas
 
 ### Notas para explicar
 
-La app Streamlit ya está en dev. El formulario recoge las características y muestra la categoría predicha, un rango de precio según los umbrales y probabilidades estimadas. El artefacto incluye el modelo y metadatos del formulario. La app integra ahora el champion XGBoost, con comprobaciones de parámetros y procedencia. Guarda cada predicción y permite declarar un precio por noche. La clase se calcula con los umbrales de esa predicción y se admite una sola respuesta. El almacenamiento actual usa CSV locales mediante la interfaz compartida, preparada para sustituirse por MongoDB. Integrar el champion no equivale a un despliegue público verificado. Los tests de la app usan un modelo sintético. No afirmamos que las probabilidades estén calibradas ni que exista una URL pública verificada. Podemos explicar o mostrar el formulario solo si el entorno local está preparado.
+La app Streamlit está integrada en dev y la demo pública está en https://bcn-price-classifier.onrender.com. El formulario pide características del alojamiento y deriva distrito y coordenadas de referencia por barrio para completar las 23 entradas del modelo. Muestra la categoría predicha, un rango según los umbrales y probabilidades estimadas, cuya calibración no se ha demostrado. El artefacto distribuido contiene solo el champion XGBoost, con comprobaciones de parámetros y procedencia: no hay experimento A/B en la demo. Con MONGODB_URI se guardan predicciones y respuestas en MongoDB; sin esa configuración se usan CSV locales. Un fallo de MongoDB no provoca un cambio silencioso a CSV. La demo usa Render y Atlas; la guía documenta la prueba ficticia y persistencia confirmadas anteriormente por el usuario, no una comprobación remota nueva de esta revisión. Abrir el formulario solo lee; pulsar Predecir o Enviar escribe registros. Para exponer, usar ejemplos ficticios y obtener autorización antes de guardar. Render Free puede tardar en despertar. Los tests sintéticos no sustituyen la prueba del servicio real.
 
-Fuente: [app/app.py](https://github.com/T6-P5-Classification/bcn-price-classifier/blob/4b5f88d/app/app.py)
+Fuentes del estado actual: [app](../app/app.py), [almacenamiento](../src/feedback_store.py),
+[despliegue y evidencias](render.md) y [manifiesto del modelo](../models/app_model.manifest.json).
 
 ## 14. Límites de la evidencia
 
@@ -195,15 +206,17 @@ Fuente: [docs/decisiones.md](https://github.com/T6-P5-Classification/bcn-price-c
 
 ## 15. Próximas entregas
 
-Métricas del feedback y almacenamiento persistente
-Control de calidad e integración operativa
-Drift, reentrenamiento y despliegue
+Recoger feedback y vigilar datos nuevos
+Ensayar y sincronizar las diapositivas
+Reentrenamiento automático y MLP pendientes
 
 ### Notas para explicar
 
-La evaluación final está registrada, el champion está integrado y la app recoge feedback en CSV locales. El trabajo operativo pendiente incluye monitorización de ese feedback y almacenamiento persistente en MongoDB. No se cambia el modelo por los resultados ya vistos de test. Las métricas de feedback necesitan etiquetas reales y una definición clara de qué anuncios se evalúan. También hay que acordar el mínimo de F1 de aceptación para el control de calidad. Drift, reentrenamiento y despliegue son entregas separadas y no se presentan como operativas sin evidencia. En documentación mantendremos el estado de cada componente actualizado, distinguiendo una implementación de sus pruebas y de su ejecución real.
+La evaluación final está registrada y la app con champion único está desplegada. MongoDB, métricas de feedback, preparación de datos nuevos, controles de calidad y herramientas de drift ya están integrados. Las métricas del panel describen respuestas voluntarias con precio declarado, no a todos los anuncios ni precios verificados. El análisis de drift registrado compara junio con septiembre sobre train; no prueba vigilancia de datos futuros. El soporte A/B requiere otro artefacto con challenger y suficientes respuestas antes de comparar: no está activo en la demo actual. El reentrenamiento automático y el notebook MLP siguen vacíos, no operativos. La recogida de feedback no sustituye automáticamente el modelo. Los siguientes pasos son obtener evidencia de uso, revisar estabilidad con nuevos snapshots y ensayar la presentación, sin cambiar el modelo por resultados ya vistos de test. No se confunde una implementación con su ejecución remota verificada.
 
-Fuente: [docs/decisiones.md](https://github.com/T6-P5-Classification/bcn-price-classifier/blob/4b5f88d/docs/decisiones.md)
+Fuentes del estado actual: [decisiones](decisiones.md), [métricas de feedback](feedback_metrics.md),
+[drift registrado](results/drift_2026-06-24.json), [reentrenamiento](../src/retrain.py)
+y [notebook MLP](../notebooks/09_model_mlp.ipynb).
 
 ## 16. Conclusiones y preguntas
 
@@ -213,6 +226,37 @@ Resultados y código reproducibles
 
 ### Notas para explicar
 
-La aportación principal es una comparación trazable bajo un contrato común: mismas entradas, split y folds, preprocesamiento dentro del Pipeline y resultados claramente rotulados. Los cuatro modelos mejoran la referencia Dummy. XGBoost queda seleccionado por la regla registrada, con LightGBM prácticamente empatado. Conservamos las limitaciones de selección y exposición histórica de test. El repositorio contiene las guías y los artefactos agregados para revisar los resultados. Podemos cerrar preguntando qué comprobaciones necesita el equipo antes de desplegar y mantener la app y abrir las preguntas de la audiencia.
+La aportación principal es una comparación trazable bajo un contrato común: mismas entradas, split y folds, preprocesamiento dentro del Pipeline y resultados claramente rotulados. Los cuatro modelos mejoran la referencia Dummy. XGBoost queda seleccionado por la regla registrada, con LightGBM prácticamente empatado. Conservamos las limitaciones de selección y exposición histórica de test. El repositorio contiene las guías y los artefactos agregados para revisar los resultados. Podemos cerrar preguntando qué evidencia de uso, estabilidad y mantenimiento necesita el equipo para operar la demo ya desplegada y abrir las preguntas de la audiencia.
+
+## Verificación de la entrega
+
+1. **Requisitos:** revisar la rama `docs/40-technical-presentation`, actualizada
+   con `dev` en `fa1a9d4`. Disponer del repositorio, resultados agregados y,
+   para pruebas locales, Python 3.12 con `requirements.txt`. No se necesitan
+   credenciales de Atlas ni ejecutar notebooks de entrenamiento. Google Slides
+   requiere acceso propio autorizado; pedirlo a la coordinadora si falta.
+2. **Solo lectura local:** abrir desde README este guion. Comprobar que contiene
+   las 16 secciones numeradas, notas y fuentes. Sumar los tiempos de la tabla:
+   esperado 1.200 segundos (20 minutos orientativos, no duración ensayada).
+3. **Solo lectura local:** contrastar las cifras de las secciones 10–12 con
+   `docs/results/*_comparison.csv`, `xgboost_details.json` y
+   `champion_test.json`. Distinguir CV, predicciones OOF de train y test final;
+   las filas de las matrices son categorías reales y las columnas predichas.
+   Revisar las secciones 13–15 junto con README y `docs/render.md`.
+4. **Prueba local opcional:** desde la raíz, ejecutar
+   `python -m pytest -q tests/test_deployment_artifact.py tests/test_docker.py`.
+   Esperado: nueve tests correctos. Solo crea temporales/cachés locales; no
+   escribe en Atlas, entrena ni vuelve a evaluar el test reservado.
+5. **Solo lectura externa:** abrir Google Slides sin editar y comparar contenido,
+   notas, tablas y fuentes con el guion actualizado. Esperado: misma evidencia
+   y ningún estado antiguo de app provisional o despliegue pendiente. Esta
+   comprobación no se ha ejecutado en la reparación local. Si hay diferencias,
+   coordinar su actualización con la responsable y autorización específica
+   antes de editar Drive; mientras tanto, no considerar el deck actualizado.
+6. **Ensayo pendiente:** repartir intervenciones y cronometrar la exposición.
+   Si excede el tiempo, simplificar tras revisión humana sin quitar las
+   limitaciones de la evidencia. Ante cifras incoherentes o enlaces rotos,
+   detener la aceptación y registrar el punto; no repetir entrenamientos,
+   exponer secretos, enviar feedback remoto ni cambiar permisos para resolverlo.
 
 Fuente: [docs/model_comparison.md](https://github.com/T6-P5-Classification/bcn-price-classifier/blob/4b5f88d/docs/model_comparison.md)

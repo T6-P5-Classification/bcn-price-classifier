@@ -136,6 +136,11 @@ def model_details(artifact: dict) -> str:
     """Technical details, shown only if the user opens «Sobre el modelo»."""
     if artifact.get("provisional", True):
         text = f"Modelo provisional para demostración ({artifact['model_name']})."
+    elif artifact.get("ab_role") == "challenger":
+        text = (
+            f"Modelo {artifact['model_name']}, en prueba frente al modelo elegido: "
+            "cada visita usa uno de los dos al azar para comparar sus aciertos."
+        )
     else:
         text = f"Modelo {artifact['model_name']}, elegido entre cuatro modelos comparados."
     metrics = artifact.get("test_metrics")
