@@ -889,6 +889,30 @@ la tabla de métricas original. RF sigue identificado como reconstrucción
 local no idéntica al origen; los otros tres reproducen sus métricas OOF.
 
 
+## Presentación técnica del proyecto (#40)
+
+La presentación usa Google Slides y mantiene un estilo sencillo con 16
+diapositivas, poco texto visible y notas explicativas. Los tiempos del guion
+suman 20 minutos orientativos y requieren ensayo. Se enlaza desde README y
+se conserva el guion con fuentes en `docs/presentacion_tecnica.md`.
+
+El guion se actualiza con la evidencia integrada en `dev` en `fa1a9d4`.
+Se distinguen selección de XGBoost, empate práctico con LightGBM, resultados
+CV/OOF y evaluación final ya registrada, sin repetir entrenamientos ni test
+reservado. Refleja la app con champion único, Render/Atlas, métricas del
+feedback y drift integrados, y reentrenamiento automático y MLP pendientes.
+La resolución conserva el README vigente y ambas secciones de decisiones,
+sin modificar entregas ajenas. Verificación numerada y límites en el guion.
+El Google Slides es un recurso externo: esta revisión local no verifica ni
+actualiza su contenido, permisos o notas. Su sincronización con el guion y el
+ensayo por el equipo quedan pendientes; no se presenta el deck como validado.
+Validación local de la reparación: 350 tests correctos, ocho de integración
+MongoDB omitidos por no configurar servidor local y tres avisos gráficos
+existentes. Se verificaron 69 enlaces locales/anclas en README, guion y
+decisiones, 16 secciones de diapositivas, 1.200 segundos orientativos y las
+cifras agregadas de CV, matriz OOF y test final. No se ejecutó integración
+remota ni se volvió a evaluar el conjunto de test reservado.
+
 ## Síntesis técnica del proyecto (#38)
 
 `docs/informe_tecnico.md` reúne el contrato compartido y los resultados

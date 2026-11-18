@@ -546,6 +546,7 @@ docs/         Decisiones, guías y resultados agregados
 | Tema | Referencia |
 |---|---|
 | Informe técnico del proyecto | [Problema, datos, evaluación y resultados](docs/informe_tecnico.md) |
+| Presentación técnica (20 minutos orientativos) | [Google Slides](https://docs.google.com/presentation/d/1zSvjH1LRa9Q_JK8cMZpOBaoV3WFl84wj65ChRRJQVkU/edit) / [Guion y verificación](docs/presentacion_tecnica.md) |
 | Acuerdos y salvedades de modelado | [Decisiones](docs/decisiones.md) |
 | Guía de comprobación por issue | [Pruebas manuales](docs/pruebas_manuales.md) |
 | EDA por distrito y habitación | [EDA](docs/eda_distritos_room_type.md) |
