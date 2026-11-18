@@ -1,0 +1,42 @@
+# App + base de datos (#26).
+#
+# Se utiliza el champion revisado distribuido con el repositorio (#33):
+#   docker compose up --build        # app en http://localhost:8501
+#   docker compose down              # para; los datos se conservan en los volúmenes
+#
+# La app guarda predicciones y feedback en MongoDB mediante MONGODB_URI (#27).
+# El volumen "mongo-data" conserva esos registros al recrear los contenedores.
+# "feedback-data" conserva los CSV anteriores; no se migran automáticamente.
+
+services:
+  app:
+    build: .
+    image: bcn-price-classifier
+    ports:
+      - "8501:8501"
+    environment:
+      FEEDBACK_DIR: /app/data/feedback
+      MONGODB_URI: mongodb://mongo:27017/bcn_price_classifier
+    volumes:
+      - feedback-data:/app/data/feedback
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7.0.14
+    # Sin puerto publicado: solo la app (red interna de Compose) puede conectarse.
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+volumes:
+  feedback-data:
+  mongo-data:

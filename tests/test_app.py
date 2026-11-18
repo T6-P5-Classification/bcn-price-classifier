@@ -397,3 +397,131 @@ def test_prediction_is_shown_even_if_it_cannot_be_stored(run_app, monkeypatch):
     assert not at.exception
     assert any("Probabilidad estimada" in m.value for m in at.markdown)
     assert not any(b.label == "Enviar" for b in at.button)  # no feedback without a stored prediction
+
+
+def test_metrics_panel_uses_feedback_saved_by_the_full_app(run_app):
+    at = run_app()
+    assert not at.exception
+    assert not at.metric  # opt-in view does not load or show metrics by default
+    at.button[0].click().run()
+    next(n for n in at.number_input if n.label.startswith("Precio real")).set_value(200.)
+    next(b for b in at.button if b.label == "Enviar").click().run()
+    at.checkbox(key="show_feedback_metrics").check().run()
+    assert not at.exception
+    values = {item.label: item.value for item in at.metric}
+    assert values["Predicciones guardadas"] == "1"
+    assert values["Respuestas"] == "1"
+    assert values["Cobertura del feedback"] == "100,0 %"
+    assert int(at.dataframe[-1].value.to_numpy().sum()) == 1
+
+
+def test_app_starts_outside_repository_with_clean_pythonpath(tmp_path):
+    """Console launch gives the app directory, not pytest's repository path."""
+    import os
+    import subprocess
+    artifact_path = tmp_path / "synthetic.joblib"
+    joblib.dump(make_artifact(), artifact_path)
+    env = dict(os.environ, APP_MODEL_PATH=str(artifact_path),
+               FEEDBACK_DIR=str(tmp_path / "feedback"), PYTHONPATH="")
+    code = (
+        "import runpy,sys; "
+        f"sys.path.insert(0,{str(ROOT / 'app')!r}); "
+        f"runpy.run_path({APP!r},run_name='__main__')"
+    )
+    result = subprocess.run([sys.executable, "-c", code], cwd=tmp_path,
+                            env=env, text=True, capture_output=True, timeout=30)
+    assert result.returncode == 0, result.stderr[-3000:]
+
+
+def test_csv_fallback_is_visible_before_predicting(run_app):
+    at = run_app()
+    assert any("CSV local" in message.value and "MongoDB no está configurado" in message.value for message in at.info)
+
+
+def test_mongodb_configuration_is_visible_and_failure_keeps_prediction(run_app, monkeypatch):
+    import src.feedback_store as store
+    at = run_app()
+    monkeypatch.setenv("MONGODB_URI", "mongodb://unused/example")
+    def unavailable(*_):
+        raise store.StorageError("MongoDB unavailable")
+    monkeypatch.setattr(store, "mongo_store", unavailable)
+    at.run()
+    assert not any("CSV local" in message.value for message in at.info)
+    assert any("Almacenamiento configurado: MongoDB" in c.value for c in at.caption)
+    at.button[0].click().run()
+    assert not at.exception
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+    assert any("No se ha podido guardar" in c.value for c in at.caption)
+    assert not any(b.label == "Enviar" for b in at.button)
+
+
+# --- A/B test (#35) -------------------------------------------------------
+
+def make_challenger():
+    X, y = synthetic_training(seed=1)
+    model = Pipeline([("prep", build_preprocessor()), ("model", LogisticRegression(C=0.1, max_iter=500))])
+    model.fit(X, y)
+    return {"model": model, "model_name": "LightGBM", "model_version": "lightgbm-test",
+            "class_labels": class_labels(model.classes_), "test_metrics": None,
+            "ab_role": "challenger"}
+
+
+AB_CHAMPION = {"model_name": "XGBoost", "model_version": "xgboost-test", "provisional": False}
+
+
+@pytest.mark.parametrize("split, expected", [("1", "LightGBM"), ("0", "XGBoost")])
+def test_ab_split_decides_which_model_answers_and_is_recorded(run_app, tmp_path, monkeypatch,
+                                                              split, expected):
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", split)
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    at.button[0].click().run()
+    assert not at.exception
+    assert at.session_state["variant"] == ("challenger" if split == "1" else "champion")
+    stored = load_predictions(tmp_path / "feedback")
+    assert stored["model_name"].tolist() == [expected]
+    assert stored["variant"].tolist() == [at.session_state["variant"]]
+    assert f"Modelo {expected}" in at.expander[0].markdown[0].value
+
+
+def test_ab_variant_stays_the_same_during_a_session(run_app, tmp_path, monkeypatch):
+    """Sticky: several predictions in one session use the same model."""
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", "0.5")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    variant = at.session_state["variant"]
+    for beds in (1, 2, 3):
+        next(n for n in at.number_input if n.label == "Camas").set_value(beds)
+        at.button[0].click().run()
+        assert not at.exception and at.session_state["variant"] == variant
+    stored = load_predictions(tmp_path / "feedback")
+    assert len(stored) == 3 and stored["model_name"].nunique() == 1
+    # One anonymous session id for the whole session, so the A/B analysis counts it once.
+    assert stored["session_id"].nunique() == 1
+    assert stored["session_id"].iloc[0] == at.session_state["session_id"]
+
+
+def test_challenger_details_do_not_claim_it_was_chosen_or_tested(run_app, monkeypatch):
+    monkeypatch.setenv("AB_SPLIT", "1")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger(),
+                 test_metrics={"f1_macro": 0.7651, "accuracy": 0.7645, "n_test": 2522})
+    at.button[0].click().run()
+    details = at.expander[0].markdown[0].value
+    assert "en prueba frente al modelo elegido" in details
+    assert "elegido entre cuatro" not in details
+    assert "2.522" not in details  # the champion's test result is not the challenger's
+
+
+def test_without_challenger_or_with_a_bad_split_only_the_champion_answers(run_app, tmp_path,
+                                                                          monkeypatch):
+    from src.feedback_store import load_predictions
+    monkeypatch.setenv("AB_SPLIT", "1")
+    at = run_app(**AB_CHAMPION)  # artifact without challenger
+    at.button[0].click().run()
+    assert not at.exception and at.session_state["variant"] == "champion"
+
+    monkeypatch.setenv("AB_SPLIT", "mitad")
+    at = run_app(**AB_CHAMPION, challenger=make_challenger())
+    at.button[0].click().run()
+    assert not at.exception and at.session_state["variant"] == "champion"
+    assert set(load_predictions(tmp_path / "feedback")["model_name"]) == {"XGBoost"}

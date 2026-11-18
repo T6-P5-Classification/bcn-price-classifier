@@ -6,6 +6,11 @@ inside the shared pipeline and fitted on all of train with the 23 variables of
 ``MODEL_FEATURES``. The test set is not used. ``class_labels`` tells the app
 how to read the model's classes (XGBoost predicts 0/1/2).
 
+For the A/B test (#35) the artifact also carries a challenger: LightGBM with
+the hyperparameters of its own selected Optuna trial (#21), fitted on the same
+train rows. It has no test evaluation: the test set was used once, for the
+champion only.
+
 Usage:  python -m src.train_app_model   (or: python src/train_app_model.py)
 """
 
@@ -20,12 +25,16 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from lightgbm import LGBMClassifier
+from sklearn.pipeline import Pipeline
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # works with "python src/train_app_model.py" too
 
 from src.cleaning import MODEL_FEATURES  # noqa: E402
-from src.preprocessing import RAW_DATA_PATH, TARGET_LABELS, load_train_test  # noqa: E402
+from src.preprocessing import (  # noqa: E402
+    RAW_DATA_PATH, TARGET_LABELS, build_preprocessor, load_train_test,
+)
 from src.xgboost_model import encode_target, make_pipeline  # noqa: E402
 
 MODEL_PATH = ROOT / "models" / "app_model.joblib"
@@ -60,6 +69,28 @@ def champion_model(results=RESULTS):
     if mismatch:
         raise ValueError(f"Champion parameters differ from the comparison: {mismatch}")
     return model
+
+
+def challenger_model(results=RESULTS, *, raw_sha256: str | None = None):
+    """Unfitted LightGBM challenger (#35), checked against its comparison row.
+
+    Same construction as notebook 07: shared preprocessing and LGBMClassifier
+    with the selected parameters plus the fixed ones. If ``raw_sha256`` is
+    given, the challenger must have been selected on those same data.
+    """
+    details = json.loads((results / "lightgbm_details.json").read_text())
+    row = pd.read_csv(results / "lightgbm_comparison.csv").query("model == 'LightGBM'").iloc[0]
+    if details["provenance"]["raw_sha256"] != row["raw_sha256"]:
+        raise ValueError("lightgbm_details.json and lightgbm_comparison.csv use different data")
+    if raw_sha256 is not None and row["raw_sha256"] != raw_sha256:
+        raise ValueError("The challenger was selected on different data than the champion")
+    model = LGBMClassifier(**details["fixed_params"], **details["selected_params"])
+    winner = json.loads(row["params"])
+    effective = model.get_params()
+    mismatch = {k: (effective.get(k), v) for k, v in winner.items() if not _same(effective.get(k), v)}
+    if mismatch:
+        raise ValueError(f"Challenger parameters differ from the comparison: {mismatch}")
+    return Pipeline([("prep", build_preprocessor()), ("model", model)])
 
 
 def _same_params(a: dict, b: dict) -> bool:
@@ -130,16 +161,16 @@ def held_out_summary(provenance: dict, results=RESULTS) -> dict | None:
             "n_test": record["n_test"]}
 
 
-def model_version() -> str:
+def model_version(name: str = "xgboost") -> str:
     """Identifier of the trained artifact stored with every prediction."""
-    trial = json.loads((RESULTS / "xgboost_details.json").read_text())["selected_trial"]
+    trial = json.loads((RESULTS / f"{name}_details.json").read_text())["selected_trial"]
     try:
         commit = subprocess.check_output(
             ["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         commit = "sin-git"
-    return f"xgboost-trial{trial}-{commit}"
+    return f"{name}-trial{trial}-{commit}"
 
 
 def main() -> None:
@@ -156,6 +187,8 @@ def main() -> None:
     test_metrics = held_out_summary(provenance)  # checked before the (slower) fit
     model = champion_model()
     model.fit(X_train, encode_target(y_train))  # Económico=0, Medio=1, Premium=2
+    challenger = challenger_model(raw_sha256=provenance["raw_sha256"])
+    challenger.fit(X_train, y_train)  # text labels, as in notebook 07
 
     # Data the form needs: options and values derived from the user's choices.
     by_hood = X_train.groupby("neighbourhood_cleansed")
@@ -189,6 +222,16 @@ def main() -> None:
         "test_metrics": test_metrics,
         "provenance": provenance,
         "class_labels": class_labels(model.classes_),
+        # A/B test (#35): replaces the model and its description for the
+        # sessions assigned to the challenger (src/ab_test.py).
+        "challenger": {
+            "model": challenger,
+            "model_name": "LightGBM",
+            "model_version": model_version("lightgbm"),
+            "class_labels": class_labels(challenger.classes_),
+            "test_metrics": None,  # the test set was used once, for the champion
+            "ab_role": "challenger",
+        },
     }
     MODEL_PATH.parent.mkdir(exist_ok=True)
     joblib.dump(artifact, MODEL_PATH)

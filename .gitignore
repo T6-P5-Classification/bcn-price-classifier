@@ -225,8 +225,9 @@ data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 
-# Modelos entrenados (se generan con python -m src.train_app_model)
+# Modelos: solo se publica el champion revisado de la demo (#33).
 models/*.joblib
+!models/app_model.joblib
 
 # Local notebook runtime and kernel configuration
 .jupyter/
