@@ -218,3 +218,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Datos (no se suben a GitHub)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Modelos: solo se publica el champion revisado de la demo (#33).
+models/*.joblib
+!models/app_model.joblib
+
+# Local notebook runtime and kernel configuration
+.jupyter/
+
+# Predicciones y feedback de la app (#23): datos locales, no se suben
+data/feedback/

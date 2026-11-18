@@ -1,0 +1,439 @@
+{
+  "issue": 20,
+  "evaluation_set": "train_oof",
+  "test_evaluated": false,
+  "nested_cv": false,
+  "historical_test_exposure": true,
+  "historical_test_exposure_note": "La baseline del proyecto mostró anteriormente resultados de esta partición; no se borra ese antecedente. XGBoost no consulta el test.",
+  "seed": 42,
+  "n_trials_budget": 40,
+  "n_trials_executed": 40,
+  "trial_states": {
+    "COMPLETE": 40
+  },
+  "n_eligible_trials": 27,
+  "search_seconds": 142.37748325010762,
+  "search_space": {
+    "n_estimators": {
+      "kind": "int",
+      "low": 100,
+      "high": 500,
+      "step": 50
+    },
+    "max_depth": {
+      "kind": "int",
+      "low": 2,
+      "high": 6
+    },
+    "learning_rate": {
+      "kind": "float",
+      "low": 0.02,
+      "high": 0.15,
+      "log": true
+    },
+    "min_child_weight": {
+      "kind": "float",
+      "low": 5.0,
+      "high": 100.0,
+      "log": true
+    },
+    "gamma": {
+      "kind": "float",
+      "low": 0.0,
+      "high": 5.0
+    },
+    "subsample": {
+      "kind": "float",
+      "low": 0.6,
+      "high": 1.0
+    },
+    "colsample_bytree": {
+      "kind": "float",
+      "low": 0.6,
+      "high": 1.0
+    },
+    "reg_alpha": {
+      "kind": "float",
+      "low": 0.001,
+      "high": 10.0,
+      "log": true
+    },
+    "reg_lambda": {
+      "kind": "float",
+      "low": 0.1,
+      "high": 100.0,
+      "log": true
+    }
+  },
+  "fixed_params": {
+    "objective": "multi:softprob",
+    "num_class": 3,
+    "eval_metric": "mlogloss",
+    "tree_method": "hist",
+    "random_state": 42,
+    "n_jobs": 1,
+    "verbosity": 0
+  },
+  "selection_rule": "max mean validation macro F1 among COMPLETE trials with gap < 0.05; earliest wins ties",
+  "selected_trial": 34,
+  "selected_params": {
+    "n_estimators": 200,
+    "max_depth": 6,
+    "learning_rate": 0.13596326288098115,
+    "min_child_weight": 9.448211347985099,
+    "gamma": 0.39422572853428905,
+    "subsample": 0.6860871530746592,
+    "colsample_bytree": 0.6645760092625056,
+    "reg_alpha": 3.2870454921742165,
+    "reg_lambda": 21.189223459332542
+  },
+  "unconstrained_best_trial": 30,
+  "unconstrained_best_cv": {
+    "cv_train_f1_macro": 0.8657747670471192,
+    "cv_validation_f1_macro": 0.7673263472413169,
+    "cv_validation_std": 0.004484617492040463,
+    "gap": 0.09844841980580232,
+    "gap_under_005": false,
+    "cv_fit_seconds": 4.509431600570679,
+    "folds": [
+      {
+        "fold": 1,
+        "f1_train": 0.863785374966632,
+        "f1_validation": 0.7670283882913181,
+        "fit_seconds": 0.909862756729126
+      },
+      {
+        "fold": 2,
+        "f1_train": 0.8673574783249203,
+        "f1_validation": 0.762231445886477,
+        "fit_seconds": 0.9195559024810791
+      },
+      {
+        "fold": 3,
+        "f1_train": 0.8674462675147806,
+        "f1_validation": 0.770700948255996,
+        "fit_seconds": 0.8929920196533203
+      },
+      {
+        "fold": 4,
+        "f1_train": 0.86484112414349,
+        "f1_validation": 0.7628088344333012,
+        "fit_seconds": 0.8700189590454102
+      },
+      {
+        "fold": 5,
+        "f1_train": 0.8654435902857728,
+        "f1_validation": 0.7738621193394919,
+        "fit_seconds": 0.9170019626617432
+      }
+    ]
+  },
+  "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+  "provenance": {
+    "snapshot": "2026-09-17",
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "code_commit": "6cf7cb7ff52d28460b08fda78144af39c70fad99",
+    "source_sha256": {
+      "src/cleaning.py": "3d7c6b53f053d3fbfa2b5a84aa0de108807c9e072de52e2f6305290ecf171ea9",
+      "src/preprocessing.py": "e154b587d73ee0461efebdac1ea59248465e9a59eeb1f88a091c936074fa856c",
+      "src/xgboost_model.py": "989b39f424b15e9003a86ad48a1a5eb3572f5d77859d7cfea3f9e9f5f25d5557"
+    },
+    "python": "3.15.0",
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scipy": "1.18.1",
+      "scikit-learn": "1.9.1",
+      "xgboost": "3.4.1",
+      "optuna": "5.0.0",
+      "threadpoolctl": "3.8.0"
+    }
+  },
+  "input_schema": {
+    "neighbourhood_cleansed": "str",
+    "neighbourhood_group_cleansed": "str",
+    "latitude": "float64",
+    "longitude": "float64",
+    "property_type": "str",
+    "room_type": "str",
+    "accommodates": "int64",
+    "bedrooms": "float64",
+    "beds": "float64",
+    "minimum_nights": "float64",
+    "bathrooms_count": "float64",
+    "is_shared_bathroom": "int8",
+    "is_private_bathroom": "int8",
+    "has_air_conditioning": "int8",
+    "has_heating": "int8",
+    "has_hair_dryer": "int8",
+    "has_parking": "int8",
+    "has_self_checkin": "int8",
+    "has_dedicated_workspace": "int8",
+    "has_tv": "int8",
+    "has_pool": "int8",
+    "has_elevator": "int8",
+    "has_dishwasher": "int8"
+  },
+  "label_to_int": {
+    "Económico": 0,
+    "Medio": 1,
+    "Premium": 2
+  },
+  "thresholds": {
+    "lower": 122.0,
+    "upper": 249.72333333333327
+  },
+  "train_rows": 10088,
+  "references_cv": {
+    "dummy": {
+      "cv_train_f1_macro": 0.16679054498770762,
+      "cv_validation_f1_macro": 0.1667905363694382,
+      "cv_validation_std": 6.781262944633492e-05,
+      "gap": 8.618269431437398e-09,
+      "gap_under_005": true,
+      "cv_fit_seconds": 0.1990046501159668,
+      "folds": [
+        {
+          "fold": 1,
+          "f1_train": 0.16680603301433924,
+          "f1_validation": 0.1667286015112102,
+          "fit_seconds": 0.042970895767211914
+        },
+        {
+          "fold": 2,
+          "f1_train": 0.16680603301433924,
+          "f1_validation": 0.1667286015112102,
+          "fit_seconds": 0.038125038146972656
+        },
+        {
+          "fold": 3,
+          "f1_train": 0.1667595861983522,
+          "f1_validation": 0.16691431401684,
+          "fit_seconds": 0.03885078430175781
+        },
+        {
+          "fold": 4,
+          "f1_train": 0.16679053635575372,
+          "f1_validation": 0.1667905824039653,
+          "fit_seconds": 0.03983712196350098
+        },
+        {
+          "fold": 5,
+          "f1_train": 0.16679053635575372,
+          "f1_validation": 0.1667905824039653,
+          "fit_seconds": 0.03922080993652344
+        }
+      ]
+    },
+    "xgboost_default": {
+      "cv_train_f1_macro": 0.9256241673468683,
+      "cv_validation_f1_macro": 0.7734243388110298,
+      "cv_validation_std": 0.0042525419275341375,
+      "gap": 0.15219982853583847,
+      "gap_under_005": false,
+      "cv_fit_seconds": 1.966078758239746,
+      "folds": [
+        {
+          "fold": 1,
+          "f1_train": 0.9294593416241689,
+          "f1_validation": 0.7799004053828035,
+          "fit_seconds": 0.40628695487976074
+        },
+        {
+          "fold": 2,
+          "f1_train": 0.9213646506446566,
+          "f1_validation": 0.7703373831939525,
+          "fit_seconds": 0.3859989643096924
+        },
+        {
+          "fold": 3,
+          "f1_train": 0.9223168468704683,
+          "f1_validation": 0.7766373752622481,
+          "fit_seconds": 0.384368896484375
+        },
+        {
+          "fold": 4,
+          "f1_train": 0.9278327865084751,
+          "f1_validation": 0.7682747450808941,
+          "fit_seconds": 0.376568078994751
+        },
+        {
+          "fold": 5,
+          "f1_train": 0.9271472110865728,
+          "f1_validation": 0.7719717851352508,
+          "fit_seconds": 0.412855863571167
+        }
+      ]
+    }
+  },
+  "selected_cv": {
+    "cv_train_f1_macro": 0.8113547959724494,
+    "cv_validation_f1_macro": 0.7631189831283225,
+    "cv_validation_std": 0.0032410902479801055,
+    "gap": 0.048235812844126924,
+    "gap_under_005": true,
+    "cv_fit_seconds": 3.3243038654327393,
+    "folds": [
+      {
+        "fold": 1,
+        "f1_train": 0.8101837787115836,
+        "f1_validation": 0.7677880440891349,
+        "fit_seconds": 0.6794428825378418
+      },
+      {
+        "fold": 2,
+        "f1_train": 0.8122146883484799,
+        "f1_validation": 0.7603606444809027,
+        "fit_seconds": 0.6734230518341064
+      },
+      {
+        "fold": 3,
+        "f1_train": 0.807688647224084,
+        "f1_validation": 0.7615710622520014,
+        "fit_seconds": 0.648792028427124
+      },
+      {
+        "fold": 4,
+        "f1_train": 0.8155326971842697,
+        "f1_validation": 0.7597241032868264,
+        "fit_seconds": 0.6363680362701416
+      },
+      {
+        "fold": 5,
+        "f1_train": 0.8111541683938303,
+        "f1_validation": 0.7661510615327473,
+        "fit_seconds": 0.6862778663635254
+      }
+    ]
+  },
+  "selected_oof": {
+    "evaluation_set": "train_oof",
+    "oof_accuracy": 0.7629857256145915,
+    "oof_f1_macro": 0.7631467385217329,
+    "oof_extreme_error_rate": 0.010111022997620936,
+    "oof_seconds": 3.3976675420999527,
+    "n_rows": 10088,
+    "confusion_matrix": [
+      [
+        2970,
+        343,
+        53
+      ],
+      [
+        349,
+        2245,
+        765
+      ],
+      [
+        49,
+        832,
+        2482
+      ]
+    ],
+    "matrix_rows": "real price class",
+    "matrix_columns": "predicted class",
+    "label_order": [
+      "Económico",
+      "Medio",
+      "Premium"
+    ],
+    "classification_report": {
+      "Económico": {
+        "precision": 0.8818289786223278,
+        "recall": 0.8823529411764706,
+        "f1-score": 0.882090882090882,
+        "support": 3366.0
+      },
+      "Medio": {
+        "precision": 0.6564327485380117,
+        "recall": 0.668353676689491,
+        "f1-score": 0.6623395781088656,
+        "support": 3359.0
+      },
+      "Premium": {
+        "precision": 0.7521212121212121,
+        "recall": 0.7380315194766578,
+        "f1-score": 0.745009755365451,
+        "support": 3363.0
+      },
+      "accuracy": 0.7629857256145915,
+      "macro avg": {
+        "precision": 0.7634609797605171,
+        "recall": 0.7629127124475398,
+        "f1-score": 0.7631467385217329,
+        "support": 10088.0
+      },
+      "weighted avg": {
+        "precision": 0.7635386182340973,
+        "recall": 0.7629857256145915,
+        "f1-score": 0.7632220816097939,
+        "support": 10088.0
+      }
+    }
+  },
+  "dummy_oof": {
+    "evaluation_set": "train_oof",
+    "oof_accuracy": 0.33366375892149086,
+    "oof_f1_macro": 0.16679054556265793,
+    "oof_extreme_error_rate": 0.33336637589214907,
+    "oof_seconds": 0.22226120810955763,
+    "n_rows": 10088,
+    "confusion_matrix": [
+      [
+        3366,
+        0,
+        0
+      ],
+      [
+        3359,
+        0,
+        0
+      ],
+      [
+        3363,
+        0,
+        0
+      ]
+    ],
+    "matrix_rows": "real price class",
+    "matrix_columns": "predicted class",
+    "label_order": [
+      "Económico",
+      "Medio",
+      "Premium"
+    ],
+    "classification_report": {
+      "Económico": {
+        "precision": 0.33366375892149086,
+        "recall": 1.0,
+        "f1-score": 0.5003716366879738,
+        "support": 3366.0
+      },
+      "Medio": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 3359.0
+      },
+      "Premium": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 3363.0
+      },
+      "accuracy": 0.33366375892149086,
+      "macro avg": {
+        "precision": 0.11122125297383029,
+        "recall": 0.3333333333333333,
+        "f1-score": 0.16679054556265793,
+        "support": 10088.0
+      },
+      "weighted avg": {
+        "precision": 0.11133150401761877,
+        "recall": 0.33366375892149086,
+        "f1-score": 0.16695588115500792,
+        "support": 10088.0
+      }
+    }
+  }
+}

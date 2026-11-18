@@ -1,0 +1,561 @@
+{
+  "issue": 17,
+  "evaluation_set": "train_oof",
+  "test_inspected": false,
+  "nested_cv": false,
+  "hyperparameter_search_executed": false,
+  "full_train_fit_executed": false,
+  "fold_fits_executed": 20,
+  "class_order": [
+    "Económico",
+    "Medio",
+    "Premium"
+  ],
+  "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+  "train_rows": 10088,
+  "model_feature_count": 23,
+  "thresholds_eur_per_night": {
+    "lower": 122.0,
+    "upper": 249.72333333333327
+  },
+  "historical_test_exposure": true,
+  "candidates": {
+    "LogisticRegression": {
+      "source_row": {
+        "model": "LogisticRegression",
+        "cv_train_f1_macro": 0.7395854079816718,
+        "cv_validation_f1_macro": 0.7291233516371436,
+        "cv_validation_std": 0.0060910473000229896,
+        "gap": 0.010462056344528237,
+        "gap_under_005": true,
+        "cv_fit_seconds": 0.6687955856323242,
+        "evaluation_set": "train_oof",
+        "oof_accuracy": 0.7296788263283108,
+        "oof_f1_macro": 0.7291830517225034,
+        "oof_extreme_error_rate": 0.012490087232355274,
+        "oof_seconds": 0.6506816250039265,
+        "search_seconds": 20.194710416020826,
+        "params": "{\"C\": 0.5971896122019431, \"class_weight\": null}",
+        "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+        "snapshot": "2026-09-17",
+        "code_commit": "5be5a63fcec6e779b070efb7d08027f5534c9bb3",
+        "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+        "source_csv": "logreg_comparison.csv"
+      },
+      "effective_params": {
+        "C": 0.5971896122019431,
+        "class_weight": null,
+        "dual": false,
+        "fit_intercept": true,
+        "intercept_scaling": 1,
+        "l1_ratio": 0.0,
+        "max_iter": 5000,
+        "n_jobs": null,
+        "penalty": "deprecated",
+        "random_state": null,
+        "solver": "lbfgs",
+        "tol": 0.0001,
+        "verbose": 0,
+        "warm_start": false
+      },
+      "target_encoding": "original class names",
+      "matrix_counts": [
+        [
+          2918,
+          382,
+          66
+        ],
+        [
+          437,
+          2053,
+          869
+        ],
+        [
+          60,
+          913,
+          2390
+        ]
+      ],
+      "matrix_row_percentages": [
+        [
+          86.69043374925728,
+          11.34878193701723,
+          1.9607843137254901
+        ],
+        [
+          13.00982435248586,
+          61.11938076808574,
+          25.870794879428402
+        ],
+        [
+          1.784121320249777,
+          27.148379423134106,
+          71.06749925661612
+        ]
+      ],
+      "matrix_rows": "real price class",
+      "matrix_columns": "predicted price class",
+      "summary": {
+        "n_total": 10088,
+        "n_correct": 7361,
+        "n_errors": 2727,
+        "n_neighbour_errors": 2601,
+        "n_extreme_errors": 126,
+        "pct_correct_of_all": 72.96788263283109,
+        "pct_errors_of_all": 27.032117367168915,
+        "pct_neighbour_of_all": 25.783108643933385,
+        "pct_extreme_of_all": 1.2490087232355274,
+        "pct_neighbour_of_errors": 95.37953795379538,
+        "pct_extreme_of_errors": 4.62046204620462
+      },
+      "oof_metrics": {
+        "oof_accuracy": 0.7296788263283108,
+        "oof_f1_macro": 0.7291830517225034,
+        "oof_extreme_error_rate": 0.012490087232355274
+      },
+      "oof_metrics_match_source": true,
+      "source_metric_check": {
+        "oof_accuracy": {
+          "source": 0.7296788263283108,
+          "local": 0.7296788263283108,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_f1_macro": {
+          "source": 0.7291830517225034,
+          "local": 0.7291830517225034,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_extreme_error_rate": {
+          "source": 0.012490087232355274,
+          "local": 0.012490087232355274,
+          "local_minus_source": 0.0,
+          "matches": true
+        }
+      },
+      "metric_mismatch_explicitly_allowed": false,
+      "oof_seconds": 0.6151337916962802
+    },
+    "RandomForest": {
+      "source_row": {
+        "model": "RandomForest",
+        "cv_train_f1_macro": 0.8054772424941413,
+        "cv_validation_f1_macro": 0.7593537479055246,
+        "cv_validation_std": 0.005580461823785096,
+        "gap": 0.046123494588616754,
+        "gap_under_005": true,
+        "cv_fit_seconds": 8.610717058181763,
+        "evaluation_set": "train_oof",
+        "oof_accuracy": 0.7588223632038065,
+        "oof_f1_macro": 0.7593756970133025,
+        "oof_extreme_error_rate": 0.00971451229183188,
+        "oof_seconds": 8.781747100001667,
+        "search_seconds": 1026.2539630999963,
+        "params": "{\"bootstrap\": true, \"max_depth\": 11, \"max_features\": 0.48114598712001183, \"min_samples_leaf\": 10, \"min_samples_split\": 2, \"n_estimators\": 150, \"n_jobs\": 1, \"random_state\": 42, \"verbose\": 0}",
+        "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+        "snapshot": "2026-09-17",
+        "code_commit": "9bb15b1ffc5832592dcf023343150348ff6288e9",
+        "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+        "source_csv": "rf_comparison.csv"
+      },
+      "effective_params": {
+        "bootstrap": true,
+        "ccp_alpha": 0.0,
+        "class_weight": null,
+        "criterion": "gini",
+        "max_depth": 11,
+        "max_features": 0.48114598712001183,
+        "max_leaf_nodes": null,
+        "max_samples": null,
+        "min_impurity_decrease": 0.0,
+        "min_samples_leaf": 10,
+        "min_samples_split": 2,
+        "min_weight_fraction_leaf": 0.0,
+        "monotonic_cst": null,
+        "n_estimators": 150,
+        "n_jobs": 1,
+        "oob_score": false,
+        "random_state": 42,
+        "verbose": 0,
+        "warm_start": false
+      },
+      "target_encoding": "Económico=0, Medio=1, Premium=2",
+      "matrix_counts": [
+        [
+          2932,
+          379,
+          55
+        ],
+        [
+          340,
+          2231,
+          788
+        ],
+        [
+          43,
+          821,
+          2499
+        ]
+      ],
+      "matrix_row_percentages": [
+        [
+          87.10635769459299,
+          11.259655377302437,
+          1.6339869281045751
+        ],
+        [
+          10.12206013694552,
+          66.4185769574278,
+          23.459362905626676
+        ],
+        [
+          1.2786202795123403,
+          24.412726732084447,
+          74.30865298840321
+        ]
+      ],
+      "matrix_rows": "real price class",
+      "matrix_columns": "predicted price class",
+      "summary": {
+        "n_total": 10088,
+        "n_correct": 7662,
+        "n_errors": 2426,
+        "n_neighbour_errors": 2328,
+        "n_extreme_errors": 98,
+        "pct_correct_of_all": 75.95162569389373,
+        "pct_errors_of_all": 24.048374306106265,
+        "pct_neighbour_of_all": 23.076923076923077,
+        "pct_extreme_of_all": 0.9714512291831879,
+        "pct_neighbour_of_errors": 95.96042868920033,
+        "pct_extreme_of_errors": 4.03957131079967
+      },
+      "oof_metrics": {
+        "oof_accuracy": 0.7595162569389373,
+        "oof_f1_macro": 0.7600898815389674,
+        "oof_extreme_error_rate": 0.00971451229183188
+      },
+      "oof_metrics_match_source": false,
+      "source_metric_check": {
+        "oof_accuracy": {
+          "source": 0.7588223632038065,
+          "local": 0.7595162569389373,
+          "local_minus_source": 0.0006938937351308461,
+          "matches": false
+        },
+        "oof_f1_macro": {
+          "source": 0.7593756970133025,
+          "local": 0.7600898815389674,
+          "local_minus_source": 0.0007141845256648516,
+          "matches": false
+        },
+        "oof_extreme_error_rate": {
+          "source": 0.00971451229183188,
+          "local": 0.00971451229183188,
+          "local_minus_source": 0.0,
+          "matches": true
+        }
+      },
+      "metric_mismatch_explicitly_allowed": true,
+      "oof_seconds": 10.060053125023842
+    },
+    "XGBoost": {
+      "source_row": {
+        "model": "XGBoost",
+        "cv_train_f1_macro": 0.8113547959724494,
+        "cv_validation_f1_macro": 0.7631189831283225,
+        "cv_validation_std": 0.0032410902479801055,
+        "gap": 0.048235812844126924,
+        "gap_under_005": true,
+        "cv_fit_seconds": 3.3243038654327393,
+        "evaluation_set": "train_oof",
+        "oof_accuracy": 0.7629857256145915,
+        "oof_f1_macro": 0.7631467385217329,
+        "oof_extreme_error_rate": 0.010111022997620936,
+        "oof_seconds": 3.3976675420999527,
+        "search_seconds": 142.37748325010762,
+        "params": "{\"colsample_bytree\": 0.6645760092625056, \"eval_metric\": \"mlogloss\", \"gamma\": 0.39422572853428905, \"learning_rate\": 0.13596326288098115, \"max_depth\": 6, \"min_child_weight\": 9.448211347985099, \"n_estimators\": 200, \"n_jobs\": 1, \"num_class\": 3, \"objective\": \"multi:softprob\", \"random_state\": 42, \"reg_alpha\": 3.2870454921742165, \"reg_lambda\": 21.189223459332542, \"subsample\": 0.6860871530746592, \"tree_method\": \"hist\", \"verbosity\": 0}",
+        "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+        "snapshot": "2026-09-17",
+        "code_commit": "6cf7cb7ff52d28460b08fda78144af39c70fad99",
+        "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+        "source_csv": "xgboost_comparison.csv"
+      },
+      "effective_params": {
+        "objective": "multi:softprob",
+        "base_score": null,
+        "booster": null,
+        "callbacks": null,
+        "colsample_bylevel": null,
+        "colsample_bynode": null,
+        "colsample_bytree": 0.6645760092625056,
+        "device": null,
+        "early_stopping_rounds": null,
+        "enable_categorical": true,
+        "eval_metric": "mlogloss",
+        "feature_types": null,
+        "feature_weights": null,
+        "gamma": 0.39422572853428905,
+        "grow_policy": null,
+        "importance_type": null,
+        "interaction_constraints": null,
+        "learning_rate": 0.13596326288098115,
+        "max_bin": null,
+        "max_cat_threshold": null,
+        "max_cat_to_onehot": null,
+        "max_delta_step": null,
+        "max_depth": 6,
+        "max_leaves": null,
+        "min_child_weight": 9.448211347985099,
+        "missing": null,
+        "monotone_constraints": null,
+        "multi_strategy": null,
+        "n_estimators": 200,
+        "n_jobs": 1,
+        "num_parallel_tree": null,
+        "random_state": 42,
+        "reg_alpha": 3.2870454921742165,
+        "reg_lambda": 21.189223459332542,
+        "sampling_method": null,
+        "scale_pos_weight": null,
+        "subsample": 0.6860871530746592,
+        "tree_method": "hist",
+        "validate_parameters": null,
+        "verbosity": 0,
+        "num_class": 3
+      },
+      "target_encoding": "Económico=0, Medio=1, Premium=2",
+      "matrix_counts": [
+        [
+          2970,
+          343,
+          53
+        ],
+        [
+          349,
+          2245,
+          765
+        ],
+        [
+          49,
+          832,
+          2482
+        ]
+      ],
+      "matrix_row_percentages": [
+        [
+          88.23529411764706,
+          10.190136660724896,
+          1.5745692216280451
+        ],
+        [
+          10.38999702292349,
+          66.83536766894909,
+          22.77463530812742
+        ],
+        [
+          1.4570324115373179,
+          24.73981564079691,
+          73.80315194766577
+        ]
+      ],
+      "matrix_rows": "real price class",
+      "matrix_columns": "predicted price class",
+      "summary": {
+        "n_total": 10088,
+        "n_correct": 7697,
+        "n_errors": 2391,
+        "n_neighbour_errors": 2289,
+        "n_extreme_errors": 102,
+        "pct_correct_of_all": 76.29857256145915,
+        "pct_errors_of_all": 23.70142743854084,
+        "pct_neighbour_of_all": 22.690325138778746,
+        "pct_extreme_of_all": 1.0111022997620935,
+        "pct_neighbour_of_errors": 95.73400250941029,
+        "pct_extreme_of_errors": 4.265997490589712
+      },
+      "oof_metrics": {
+        "oof_accuracy": 0.7629857256145915,
+        "oof_f1_macro": 0.7631467385217329,
+        "oof_extreme_error_rate": 0.010111022997620936
+      },
+      "oof_metrics_match_source": true,
+      "source_metric_check": {
+        "oof_accuracy": {
+          "source": 0.7629857256145915,
+          "local": 0.7629857256145915,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_f1_macro": {
+          "source": 0.7631467385217329,
+          "local": 0.7631467385217329,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_extreme_error_rate": {
+          "source": 0.010111022997620936,
+          "local": 0.010111022997620936,
+          "local_minus_source": 0.0,
+          "matches": true
+        }
+      },
+      "metric_mismatch_explicitly_allowed": false,
+      "oof_seconds": 3.5098852501250803
+    },
+    "LightGBM": {
+      "source_row": {
+        "model": "LightGBM",
+        "cv_train_f1_macro": 0.8124526890945456,
+        "cv_validation_f1_macro": 0.762985284774897,
+        "cv_validation_std": 0.0017770473684439543,
+        "gap": 0.04946740431964858,
+        "gap_under_005": true,
+        "cv_fit_seconds": 1.8441131114959717,
+        "evaluation_set": "train_oof",
+        "oof_accuracy": 0.762787470261697,
+        "oof_f1_macro": 0.7630155283797637,
+        "oof_extreme_error_rate": 0.00971451229183188,
+        "oof_seconds": 2.0419680001214147,
+        "search_seconds": 222.518716,
+        "params": "{\"boosting_type\": \"gbdt\", \"class_weight\": null, \"colsample_bytree\": 0.611586992897352, \"importance_type\": \"split\", \"learning_rate\": 0.056922031759422606, \"max_depth\": 6, \"min_child_samples\": 42, \"min_child_weight\": 0.001, \"min_split_gain\": 0.0, \"n_estimators\": 150, \"n_jobs\": 1, \"num_leaves\": 43, \"objective\": null, \"random_state\": 42, \"reg_alpha\": 0.0, \"reg_lambda\": 2.910164393655262, \"subsample\": 0.6851781063212045, \"subsample_for_bin\": 200000, \"subsample_freq\": 1, \"verbose\": -1}",
+        "cv": "StratifiedKFold(5, shuffle=True, random_state=42)",
+        "snapshot": "2026-09-17",
+        "code_commit": "8feaee5f5cc7702979ae9b073e382833bf26e521",
+        "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+        "source_csv": "lightgbm_comparison.csv"
+      },
+      "effective_params": {
+        "boosting_type": "gbdt",
+        "class_weight": null,
+        "colsample_bytree": 0.611586992897352,
+        "importance_type": "split",
+        "learning_rate": 0.056922031759422606,
+        "max_depth": 6,
+        "min_child_samples": 42,
+        "min_child_weight": 0.001,
+        "min_split_gain": 0.0,
+        "n_estimators": 150,
+        "n_jobs": 1,
+        "num_leaves": 43,
+        "objective": null,
+        "random_state": 42,
+        "reg_alpha": 0.0,
+        "reg_lambda": 2.910164393655262,
+        "subsample": 0.6851781063212045,
+        "subsample_for_bin": 200000,
+        "subsample_freq": 1,
+        "verbose": -1
+      },
+      "target_encoding": "original class names",
+      "matrix_counts": [
+        [
+          2965,
+          350,
+          51
+        ],
+        [
+          348,
+          2243,
+          768
+        ],
+        [
+          47,
+          829,
+          2487
+        ]
+      ],
+      "matrix_row_percentages": [
+        [
+          88.08674985145574,
+          10.39809863339275,
+          1.5151515151515151
+        ],
+        [
+          10.360226257814826,
+          66.77582613873176,
+          22.863947603453408
+        ],
+        [
+          1.3975617008623253,
+          24.65060957478442,
+          73.95182872435326
+        ]
+      ],
+      "matrix_rows": "real price class",
+      "matrix_columns": "predicted price class",
+      "summary": {
+        "n_total": 10088,
+        "n_correct": 7695,
+        "n_errors": 2393,
+        "n_neighbour_errors": 2295,
+        "n_extreme_errors": 98,
+        "pct_correct_of_all": 76.27874702616971,
+        "pct_errors_of_all": 23.721252973830293,
+        "pct_neighbour_of_all": 22.749801744647105,
+        "pct_extreme_of_all": 0.9714512291831879,
+        "pct_neighbour_of_errors": 95.90472210614291,
+        "pct_extreme_of_errors": 4.095277893857083
+      },
+      "oof_metrics": {
+        "oof_accuracy": 0.762787470261697,
+        "oof_f1_macro": 0.7630155283797637,
+        "oof_extreme_error_rate": 0.00971451229183188
+      },
+      "oof_metrics_match_source": true,
+      "source_metric_check": {
+        "oof_accuracy": {
+          "source": 0.762787470261697,
+          "local": 0.762787470261697,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_f1_macro": {
+          "source": 0.7630155283797637,
+          "local": 0.7630155283797637,
+          "local_minus_source": 0.0,
+          "matches": true
+        },
+        "oof_extreme_error_rate": {
+          "source": 0.00971451229183188,
+          "local": 0.00971451229183188,
+          "local_minus_source": 0.0,
+          "matches": true
+        }
+      },
+      "metric_mismatch_explicitly_allowed": false,
+      "oof_seconds": 2.2804739587008953
+    }
+  },
+  "authorized_metric_mismatch_models": [
+    "RandomForest"
+  ],
+  "rf_difference_cause_verified": false,
+  "rf_review_note": "La misma diferencia aparece al ejecutar las funciones originales de RF; datos, parámetros, folds y código contrastados. El notebook de origen declara Python 3.14.7 y el local 3.15.0, pero no se demuestra que eso explique la diferencia.",
+  "provenance": {
+    "raw_sha256": "226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e",
+    "snapshot": "2026-09-17",
+    "code_commit": "e2e13e15b784688a73292a559cb670b592ccb765",
+    "source_sha256": {
+      "src/cleaning.py": "3d7c6b53f053d3fbfa2b5a84aa0de108807c9e072de52e2f6305290ecf171ea9",
+      "src/preprocessing.py": "e154b587d73ee0461efebdac1ea59248465e9a59eeb1f88a091c936074fa856c",
+      "src/error_analysis.py": "f4ac5c8d251c0c8667325494915ae5e2005458cec7fce5fc5c4cdea1a0b97506"
+    },
+    "input_csv_sha256": {
+      "logreg_comparison.csv": "aa0c0a75d3817e443ec66145231f99465bc61972bcf0b92704081c5272d08fe9",
+      "rf_comparison.csv": "1a2082f4ac6632348996ac4bc2f9414c22053567f18eae6078c765fe4b66072f",
+      "xgboost_comparison.csv": "5011cea0184566e61c303f4144536134fd71a94a3cbaf4fa469cdc346aaa98b6",
+      "lightgbm_comparison.csv": "783c4c9bed7be0c4385eec227c2caa690ec420220236f581a29acd1feb26da6a"
+    },
+    "python": "3.15.0",
+    "versions": {
+      "pandas": "3.1.1",
+      "numpy": "2.5.4",
+      "scikit-learn": "1.9.1",
+      "lightgbm": "4.7.0",
+      "xgboost": "3.4.1",
+      "matplotlib": "3.11.2",
+      "threadpoolctl": "3.8.0"
+    }
+  }
+}

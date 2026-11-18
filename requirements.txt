@@ -1,0 +1,29 @@
+# Datos
+pandas==3.1.1
+numpy==2.5.4
+
+# Visualización
+matplotlib==3.11.2
+seaborn==0.13.2
+plotly==7.1.0
+missingno==0.5.2
+
+# Modelos
+scikit-learn==1.9.1
+xgboost==3.4.1
+lightgbm==4.7.0
+optuna==5.0.0
+joblib==1.6.0
+
+# App
+streamlit==1.67.0
+
+# Base de datos
+pymongo==4.19.0
+python-dotenv==1.2.4
+
+# Tests
+pytest==9.2.0
+
+# Notebooks
+ipykernel==7.4.0
