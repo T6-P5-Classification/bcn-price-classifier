@@ -132,8 +132,24 @@ test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
 necesitan el snapshot.
 
 Cada predicción y, si el usuario lo indica, su precio real por noche se
-guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
-reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
+guardan en MongoDB cuando se configura `MONGODB_URI`. Sin esa configuración
+se usan CSV en `data/feedback/` (fuera de Git), con un aviso visible en la app.
+No hay migración automática ni cambio a CSV si MongoDB falla. Contrato:
+[`docs/feedback.md`](docs/feedback.md); configuración y comprobación:
+[`docs/mongodb.md`](docs/mongodb.md).
+
+### Data drift (#36)
+
+Compara las 23 variables de un snapshot nuevo de Inside Airbnb con las filas
+de **train** con las que se entrenó el modelo (PSI por variable; no usa
+precios ni test):
+
+```bash
+python -m src.drift data/raw/listings_2026-06-24.csv.gz
+```
+
+Resultado en `docs/results/drift_<fecha>.csv` y `.json`. Resultados y
+lectura en [`docs/decisiones.md`](docs/decisiones.md#data-drift-snapshot-de-junio-frente-a-train-36).
 
 ### A/B testing (#35)
 
@@ -173,10 +189,12 @@ docker compose up --build       # app en http://localhost:8501
 docker compose down             # para; los datos se conservan
 ```
 
-Arranca la app y MongoDB. Las predicciones y el feedback se guardan en el
-volumen `feedback-data`, así que se conservan al parar o recrear los
-contenedores (`docker compose down -v` los borra). MongoDB queda disponible
-para la app en `MONGODB_URI`; usarlo para guardar los datos es #27.
+Arranca la app y MongoDB. Compose pasa `MONGODB_URI` a la app, que guarda en
+las colecciones `predictions` y `feedback`; el volumen `mongo-data` conserva
+los datos al parar o recrear contenedores. Los CSV anteriores del volumen
+`feedback-data` siguen intactos, pero no se migran automáticamente.
+`docker compose down -v` borra los datos de esos volúmenes: no usarlo para
+una parada normal. La configuración es local; no configura Atlas (#28).
 
 ## 🗂️ Estructura
 

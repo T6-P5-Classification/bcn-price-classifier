@@ -399,6 +399,28 @@ def test_prediction_is_shown_even_if_it_cannot_be_stored(run_app, monkeypatch):
     assert not any(b.label == "Enviar" for b in at.button)  # no feedback without a stored prediction
 
 
+def test_csv_fallback_is_visible_before_predicting(run_app):
+    at = run_app()
+    assert any("CSV local" in message.value and "MongoDB no está configurado" in message.value for message in at.info)
+
+
+def test_mongodb_configuration_is_visible_and_failure_keeps_prediction(run_app, monkeypatch):
+    import src.feedback_store as store
+    at = run_app()
+    monkeypatch.setenv("MONGODB_URI", "mongodb://unused/example")
+    def unavailable(*_):
+        raise store.StorageError("MongoDB unavailable")
+    monkeypatch.setattr(store, "mongo_store", unavailable)
+    at.run()
+    assert not any("CSV local" in message.value for message in at.info)
+    assert any("Almacenamiento configurado: MongoDB" in c.value for c in at.caption)
+    at.button[0].click().run()
+    assert not at.exception
+    assert any("Probabilidad estimada" in m.value for m in at.markdown)
+    assert any("No se ha podido guardar" in c.value for c in at.caption)
+    assert not any(b.label == "Enviar" for b in at.button)
+
+
 # --- A/B test (#35) -------------------------------------------------------
 
 def make_challenger():
