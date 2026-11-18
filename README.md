@@ -151,6 +151,23 @@ python -m src.drift data/raw/listings_2026-06-24.csv.gz
 Resultado en `docs/results/drift_<fecha>.csv` y `.json`. Resultados y
 lectura en [`docs/decisiones.md`](docs/decisiones.md#data-drift-snapshot-de-junio-frente-a-train-36).
 
+### A/B testing (#35)
+
+Cada sesión de la app recibe al azar el **champion** (XGBoost) o el
+**challenger** (LightGBM, empate práctico en CV), y la predicción se guarda
+con su `variant` y un identificador anónimo de sesión. La proporción del challenger se cambia con `AB_SPLIT`
+(por defecto `0.5`; `0` desactiva el test). Para comparar los aciertos con
+el feedback recibido:
+
+```bash
+python -m src.ab_test
+```
+
+Solo cuenta las respuestas de los dos modelos del artefacto actual (modelo y
+versión) y **una por sesión**. Declara un ganador solo con al menos 100
+sesiones por modelo y una diferencia clara (intervalo del 95 %). Detalles en
+[`docs/decisiones.md`](docs/decisiones.md#ab-testing-champion-frente-a-challenger-35).
+
 ### Docker (#29)
 
 El modelo no está en Git: se genera antes de construir la imagen.

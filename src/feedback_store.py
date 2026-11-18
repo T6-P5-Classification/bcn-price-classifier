@@ -51,6 +51,7 @@ PREDICTION_COLUMNS = [
     "model_name",         # str, e.g. "XGBoost"
     "model_version",      # str, identifies the trained artifact
     "variant",            # str, "champion" (or "challenger" for #35)
+    "session_id",         # str, random anonymous id of the app session (#35); optional
     *MODEL_FEATURES,      # the 23 model inputs, same names and meaning as train
     "predicted_class",    # str, Económico / Medio / Premium
     *PROBABILITY_COLUMNS.values(),  # float, sum to 1
@@ -65,6 +66,9 @@ FEEDBACK_COLUMNS = [
     "correct",            # bool, real_class == predicted_class
 ]
 COLUMNS = {PREDICTIONS: PREDICTION_COLUMNS, FEEDBACK: FEEDBACK_COLUMNS}
+# Added after the first records were stored: older CSV files and MongoDB
+# documents do not have them, and they are read as empty.
+OPTIONAL_COLUMNS = {PREDICTIONS: ("session_id",), FEEDBACK: ()}
 LOCK_TIMEOUT = 10.0   # seconds waiting for another writer
 STALE_LOCK = 60.0     # a lock older than this was left by a crashed process
 
@@ -144,21 +148,58 @@ def _append(table: str, row: dict, directory: str | Path | None = None) -> None:
         return
     path = storage_dir(directory) / f"{table}.csv"
     try:
+        if path.exists():
+            _add_optional_columns(path, table)
         pd.DataFrame([row], columns=COLUMNS[table]).to_csv(
             path, mode="a", header=not path.exists(), index=False
         )
-    except OSError as error:
+    except (OSError, ValueError) as error:
         raise StorageError(f"No se ha podido guardar: {error}") from error
+
+
+def _add_optional_columns(path: Path, table: str) -> None:
+    """Adapt a file written before an optional column existed (called under the lock).
+
+    Old rows keep their values and get the new column empty; new rows can then
+    be stored with it (otherwise new sessions would be lost for the A/B test).
+    The file is rewritten to a temporary copy and replaced in one step, so a
+    failure leaves the original file untouched.
+    """
+    header = pd.read_csv(path, nrows=0).columns.tolist()
+    if header == COLUMNS[table]:
+        return
+    missing = set(COLUMNS[table]) - set(header)
+    if set(header) - set(COLUMNS[table]) or not missing <= set(OPTIONAL_COLUMNS[table]):
+        raise ValueError(f"{path.name} does not match the storage contract")
+    # Read as text so every stored value is written back exactly as it was.
+    old = pd.read_csv(path, dtype=str, keep_default_na=False)
+    for column in missing:
+        old[column] = ""
+    temporary = path.with_name(path.name + ".tmp")
+    old[COLUMNS[table]].to_csv(temporary, index=False)
+    os.replace(temporary, path)
+
+
+def _optional_as_text(frame: pd.DataFrame, table: str) -> pd.DataFrame:
+    """Same type for optional text columns in CSV and MongoDB (empty -> missing)."""
+    for column in OPTIONAL_COLUMNS[table]:
+        frame[column] = frame[column].astype("str")
+    return frame
 
 
 def _read(table: str, directory: str | Path | None = None) -> pd.DataFrame:
     if storage_backend(directory) == "mongodb":
-        return _mongo().read(table, COLUMNS[table])
+        frame = _mongo().read(table, COLUMNS[table], optional=OPTIONAL_COLUMNS[table])
+        return _optional_as_text(frame, table)
     path = storage_dir(directory) / f"{table}.csv"
     if not path.exists():
         return pd.DataFrame(columns=COLUMNS[table])
     try:
-        return pd.read_csv(path, dtype={"prediction_id": str})[COLUMNS[table]]
+        frame = pd.read_csv(path, dtype={"prediction_id": str, "session_id": str})
+        for column in OPTIONAL_COLUMNS[table]:
+            if column not in frame:
+                frame[column] = None
+        return _optional_as_text(frame[COLUMNS[table]], table)
     except (OSError, ValueError, KeyError) as error:
         raise StorageError(f"No se han podido leer los datos: {error}") from error
 
@@ -181,6 +222,7 @@ def save_prediction(
     model_version: str,
     thresholds: dict,
     variant: str = "champion",
+    session_id: str | None = None,
     directory: str | Path | None = None,
 ) -> str:
     """Store one prediction and return its prediction_id."""
@@ -207,6 +249,7 @@ def save_prediction(
         "model_name": model_name,
         "model_version": model_version,
         "variant": variant,
+        "session_id": session_id,
         **{feature: values[feature] for feature in MODEL_FEATURES},
         "predicted_class": predicted_class,
         **dict(zip(PROBABILITY_COLUMNS.values(), values_p)),

@@ -20,6 +20,7 @@ contrario, CSV en `data/feedback/`, fuera de Git. Los campos son los mismos.
 | `model_name` | str | Modelo usado, p. ej. `XGBoost` |
 | `model_version` | str | Artefacto entrenado, p. ej. `xgboost-trial34-<commit>` |
 | `variant` | str | `champion` (para #35 A/B: `challenger`) |
+| `session_id` | str | Identificador aleatorio y anónimo de la sesión de la app (#35). Opcional: vacío en registros anteriores |
 | 23 variables de `MODEL_FEATURES` | — | Entradas del modelo, mismos nombres y significado que en train |
 | `predicted_class` | str | `Económico`, `Medio` o `Premium` |
 | `prob_economico`, `prob_medio`, `prob_premium` | float | Probabilidades del modelo (suman 1) |
@@ -82,7 +83,7 @@ límites y verificación en [mongodb.md](mongodb.md).
 | **#25** Métricas en tiempo real | `load_labelled()` para acierto (`correct`), F1 y matriz real/predicha; `load_predictions()` para número de predicciones y distribución de clases. |
 | **#27** MongoDB (`src/database.py`) | Backend disponible a través de esta interfaz: colecciones `predictions` y `feedback`, mismos campos e índices únicos. No usar un bloqueo de archivos para coordinar instancias de MongoDB. |
 | **#34** Reentrenamiento | Los datos de #24. |
-| **#35** A/B testing | Pasar `variant="challenger"` a `save_prediction()` y comparar por `variant`. |
+| **#35** A/B testing | Implementado: la app guarda `variant` (`champion` o `challenger`) en cada predicción y `src/ab_test.py` compara el acierto por `variant`, solo con los dos modelos y versiones del artefacto y una respuesta por `session_id` (`python -m src.ab_test`). |
 | **#36** Data drift | Implementado con snapshots en `src/drift.py`. Para las predicciones de la app: `drift_report(reference_features(), load_predictions())` compara sus 23 variables con train (las del formulario nunca están vacías). |
 
 ## Límites

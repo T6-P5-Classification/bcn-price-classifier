@@ -1052,3 +1052,48 @@ variables clave y esquema incompleto. Resultado guardado en
 - El PSI no dice si el modelo acierta menos; eso exige precios reales (#25).
 - Con muestras pequeñas (p. ej. las primeras predicciones de la app) el PSI
   sale alto por azar: hace falta un volumen razonable antes de leerlo.
+
+## A/B testing: champion frente a challenger (#35)
+
+**Qué se decidió:** la app compara el **champion XGBoost** (#22) con un
+**challenger LightGBM**, el segundo de la comparación con F1 de validación
+prácticamente igual (0,7630 frente a 0,7631). Es una pregunta abierta que
+la CV no resuelve: ¿acierta alguno más con anuncios nuevos?
+
+| Paso | Cómo |
+|---|---|
+| Challenger | LightGBM con los parámetros de su prueba de Optuna seleccionada (#21), ajustado con **todo train** en `src/train_app_model.py`. Se comprueba contra `lightgbm_comparison.csv` y que se seleccionó con el mismo raw. **No se evalúa en test**: el test se usó una vez, solo para el champion. |
+| Asignación | Al abrir la app, sorteo aleatorio por sesión (`AB_SPLIT`, por defecto 0,5). Se guarda en `st.session_state`: la misma sesión siempre usa el mismo modelo. Sin challenger en el artefacto, o con un `AB_SPLIT` inválido, solo responde el champion. |
+| Registro | Cada predicción guarda `variant`, `model_name`, `model_version` y un `session_id` aleatorio y anónimo (contrato de `docs/feedback.md`). `session_id` es opcional: los registros anteriores se leen con la sesión vacía. Un CSV anterior se adapta una vez al guardar la siguiente predicción (columna vacía para las filas antiguas, sin cambiar sus valores) para que las nuevas sesiones sí se guarden. |
+| Experimento | Solo cuentan las respuestas de los **dos modelos del artefacto** (nombre y versión de champion y challenger). Las de otros modelos o versiones (p. ej. el provisional) quedan fuera y se informa cuántas. |
+| Unidad | La **sesión**, porque el modelo se asigna por sesión. Cuenta la primera respuesta de cada sesión; las repeticiones y las respuestas sin `session_id` quedan fuera y se informa cuántas. Sin esto, una persona que repite el formulario 100 veces parecería 100 personas. |
+| Análisis | `src/ab_test.py` compara el % de aciertos (`correct`) de cada variante con un intervalo del 95 % de la diferencia (ajuste de Agresti-Caffo, estable con pocos datos o aciertos del 0 %/100 %). |
+| Decisión | Menos de **100 sesiones** por modelo: datos insuficientes. Intervalo que incluye 0: sin diferencia, se mantiene el champion. Solo si excluye 0 a favor del challenger se propone sustituirlo, como **decisión del equipo** tras revisar los mínimos de calidad (#32); no hay cambio automático. |
+
+**Por qué 100 sesiones:** con 100 por grupo, la incertidumbre de la
+diferencia ronda ±12 puntos; por debajo, casi cualquier diferencia puede ser
+azar. Es un umbral práctico, no un cálculo de potencia. Con la diferencia
+observada en CV (≈0,01 puntos), distinguir los dos modelos exigiría muchísimas
+más respuestas: el resultado esperable es «sin diferencia».
+
+**Validación:** tests con feedback sintético (`tests/test_ab_test.py`) y de
+la app completa (`tests/test_app.py`): reparto ≈50 %, sesión estable,
+`variant` guardada, detalles del challenger sin métricas de test del champion,
+y decisiones con pocos datos, diferencia pequeña, diferencia clara y 100 %
+frente a 100 %. Tras la revisión: respuestas antiguas de otra versión no
+cambian un empate, 100 repeticiones de dos sesiones cuentan como dos
+sesiones, 100 sesiones nuevas por modelo guardadas tras un CSV antiguo sí
+cuentan, y los CSV y documentos MongoDB sin `session_id` siguen funcionando
+(tests de integración con MongoDB 7.0.14 local). Imagen Docker construida y ambos modelos predicen dentro.
+
+**Límites:**
+- Aún **no hay usuarios reales**: se entrega el mecanismo, no un resultado.
+- La sesión es la del navegador: al recargar la página se sortea de nuevo,
+  así que una misma persona puede ver ambos modelos.
+- El feedback es voluntario y el precio no se verifica: quien responde puede
+  no representar a todos los anfitriones.
+- Se compara el acierto de la clase, no el F1 macro; con pocas respuestas
+  por clase el F1 sería muy inestable.
+- Los modelos del artefacto se reentrenan con `python -m src.train_app_model`;
+  al cambiar de versión empieza un experimento nuevo (las respuestas
+  anteriores no se mezclan).

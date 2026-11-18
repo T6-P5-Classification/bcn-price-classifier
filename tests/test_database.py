@@ -55,6 +55,17 @@ def test_reads_keep_column_order_and_hide_mongodb_ids(store):
     assert list(instance.read("feedback", columns)) == columns
 
 
+def test_optional_columns_may_be_missing_in_older_documents(store):
+    instance, db = store
+    db["predictions"].find.return_value = [{"prediction_id": "old"},
+                                           {"prediction_id": "new", "session_id": "abc"}]
+    frame = instance.read("predictions", ["prediction_id", "session_id"], optional=("session_id",))
+    assert frame["session_id"].isna().tolist() == [True, False]
+    db["predictions"].find.return_value = [{"session_id": "abc"}]
+    with pytest.raises(StorageError, match="contrato"):
+        instance.read("predictions", ["prediction_id", "session_id"], optional=("session_id",))
+
+
 def test_incomplete_documents_are_not_silently_filled(store):
     instance, db = store
     db["feedback"].find.return_value = [{"prediction_id": "example"}]

@@ -67,7 +67,9 @@ class MongoStore:
         except (PyMongoError, BSONError, TypeError, OverflowError):
             raise StorageError("No se ha podido guardar en MongoDB. Inténtalo más tarde.") from None
 
-    def read(self, table, columns):
+    def read(self, table, columns, optional=()):
+        """Documents with exactly ``columns``; ``optional`` ones may be absent."""
+        required = set(columns) - set(optional)
         try:
             projection = {column: 1 for column in columns}
             projection["_id"] = 0
@@ -76,7 +78,7 @@ class MongoStore:
             ))
         except (PyMongoError, BSONError):
             raise StorageError("No se han podido leer los datos de MongoDB.") from None
-        if any(set(row) != set(columns) for row in rows):
+        if any(not required <= set(row) <= set(columns) for row in rows):
             raise StorageError("Los registros de MongoDB no cumplen el contrato de datos.")
         return pd.DataFrame(rows, columns=columns)
 
