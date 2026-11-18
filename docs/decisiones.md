@@ -32,6 +32,43 @@ a Atlas. No se han probado carga concurrente, retención prolongada ni backups.
 Auto-Deploy está desactivado; pasar el servicio a `dev` tras la revisión y el
 merge requiere una acción remota separada y autorizada. No se cambia ahora.
 
+## README actualizado de instalación, uso y despliegue (#41)
+
+La entrega documental `docs/41-readme-current-deployment` parte de `dev` en
+`24e443b` y organiza el README conforme al código integrado, sin implementar
+otras funciones ni modificar asignaciones, ramas ajenas o servicios remotos.
+Se separan el uso de la demo sin raw, el desarrollo con snapshot, los resultados
+históricos registrados y la escritura de feedback. Se conservan enlaces a
+guías específicas para no duplicar todos los experimentos.
+
+El README incorpora la atribución de Inside Airbnb y distingue su licencia de
+la ausencia de licencia explícita del código. Explica el artefacto champion
+distribuido, A/B condicionado a otro artefacto, MLP/reentrenamiento no operativos,
+test final ya registrado y salvedades del protocolo. No se inventan nuevas
+métricas ni se repite entrenamiento, selección o evaluación de test.
+
+Render sigue observado en la rama de despliegue. Tras la integración se
+recomienda usar `dev`; `main` solo si el equipo acuerda una entrega estable
+integrada allí. Cambiar la rama del servicio y desplegar requiere autorización
+separada. Esta documentación no realiza esa operación ni garantiza que haya
+ocurrido. Auto-Deploy permanece documentado como Off.
+
+Verificación numerada y requisitos en el apartado «Pruebas y verificación»
+del README: enlaces y hechos contrastados con código/manifiesto/resultados,
+tests locales con recursos disponibles y distinción entre evidencia manual
+del usuario en Atlas y consulta HTTPS directa. Instrucciones Windows y una
+instalación de cero en otro equipo no se presentan como ejecutadas aquí.
+La revisión independiente de la nueva entrega corresponde a Esra; aprobar,
+fusionar y modificar producción siguen siendo acciones separadas.
+
+Validación realizada: 46 enlaces locales/anclas correctos en README y guía
+Render, cifras contrastadas con `champion_test.json`, contrato de 23 variables
+y estados vacíos de MLP/reentrenamiento comprobados; `src.drift --help`
+confirma el ejemplo con `--no-save`. Suite completa: 358 tests correctos,
+incluida integración MongoDB local aislada, con tres avisos gráficos existentes.
+Endpoint público consultado: HTTP 200 / `ok`. No se ejecutan nuevas escrituras
+en Atlas, entrenamiento ni una instalación limpia de Windows/macOS/Linux.
+
 ## Resumen: diez reglas para empezar un modelo
 
 1. **Carga común:** usar `load_train_test()`; no repetir limpieza, variables

@@ -10,6 +10,13 @@ Free. El flujo de predicción y respuesta se comprobó con un ejemplo ficticio;
 los registros permanecieron tras reiniciar la app, según confirmó el usuario.
 Detalle de las evidencias y sus límites al final de esta guía.
 
+El código y la documentación se integraron en `dev` en `24e443b`. La revisión
+humana de esa entrega se completó. La última rama observada en Render sigue
+siendo `feat/33-render-deployment`: se recomienda pasar el servicio a `dev`
+con permiso y verificar el nuevo despliegue. Ese cambio remoto no se ha
+confirmado y no se realiza en esta entrega documental. `main` solo debe usarse
+si el equipo acuerda y entrega allí una versión estable.
+
 ## Modelo distribuido
 
 Se autoriza distribuir `models/app_model.joblib` con el repositorio, incluso
@@ -104,7 +111,8 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
    No imprimir secretos ni cambiar a CSV para ocultar un fallo de MongoDB.
 
 Estas verificaciones no autorizan aprobación, merge ni cambio de rama del
-servicio. La revisión humana y la integración en `dev` siguen pendientes.
+servicio. La entrega de despliegue ya se revisó e integró en `dev`; el cambio
+de rama del servicio sigue siendo una operación separada.
 
 ## Validación local realizada
 
