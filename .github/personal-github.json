@@ -1,0 +1,14 @@
+{
+  "kit_version": "1.1.0",
+  "repository": "T6-P5-Classification/bcn-price-classifier",
+  "integration_branch": "dev",
+  "project": {
+    "owner": "T6-P5-Classification",
+    "owner_type": "organization",
+    "number": 3,
+    "status_field": "Status",
+    "review_status": "In Review",
+    "done_status": "Done",
+    "progress_status": "In progress"
+  }
+}
