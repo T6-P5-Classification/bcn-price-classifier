@@ -29,8 +29,56 @@ los registros enlazados en Atlas; después confirmó que ambos seguían presente
 tras reiniciar la app. El agente comprobó directamente HTTP 200 y `ok` en
 `/_stcore/health`. Son evidencias distintas: el agente no tiene acceso directo
 a Atlas. No se han probado carga concurrente, retención prolongada ni backups.
-Auto-Deploy está desactivado; pasar el servicio a `dev` tras la revisión y el
-merge requiere una acción remota separada y autorizada. No se cambia ahora.
+Auto-Deploy estaba desactivado en la última captura. Tras revisión y merge,
+el usuario confirmó que pasó Render a `dev` y que funciona. El agente no cambió
+el servicio ni verificó directamente el nuevo hash desplegado.
+
+## README actualizado de instalación, uso y despliegue (#41)
+
+Actualización local con `dev` en `936a397`: se resuelven los conflictos del
+README conservando su estructura completa y las aclaraciones integradas sobre
+XGBoost y el enlace al informe técnico. El panel de feedback ya está descrito
+en «Seguimiento y datos nuevos» y no se duplica. No se cambia código, modelos
+ni servicios; el procedimiento de verificación documental del README incluye
+estos controles. Esta resolución no equivale a publicación ni merge remoto.
+Validación local de la resolución: 20 tests correctos de artefacto, Docker e
+integridad de datos sintéticos; 50 enlaces locales/anclas correctos en README
+y guía Render. No se ha repetido la suite completa ni la integración MongoDB.
+
+La entrega documental `docs/41-readme-current-deployment` parte de `dev` en
+`24e443b` y organiza el README conforme al código integrado, sin implementar
+otras funciones ni modificar asignaciones, ramas ajenas o servicios remotos.
+Se separan el uso de la demo sin raw, el desarrollo con snapshot, los resultados
+históricos registrados y la escritura de feedback. Se conservan enlaces a
+guías específicas para no duplicar todos los experimentos.
+
+El README incorpora la atribución de Inside Airbnb y distingue su licencia de
+la ausencia de licencia explícita del código. Explica el artefacto champion
+distribuido, A/B condicionado a otro artefacto, MLP/reentrenamiento no operativos,
+test final ya registrado y salvedades del protocolo. No se inventan nuevas
+métricas ni se repite entrenamiento, selección o evaluación de test.
+
+El usuario confirmó que Render ya usa `dev` y funciona. Se actualiza ese estado
+sin atribuir al agente el cambio remoto ni afirmar un hash desplegado nuevo.
+`main` solo si el equipo acuerda una entrega estable integrada allí. Futuros
+cambios y despliegues requieren autorización separada. Auto-Deploy permanece
+documentado como Off según la última configuración observada.
+
+Verificación numerada y requisitos en el apartado «Pruebas y verificación»
+del README: enlaces y hechos contrastados con código/manifiesto/resultados,
+tests locales con recursos disponibles y distinción entre evidencia manual
+del usuario en Atlas y consulta HTTPS directa. Instrucciones Windows y una
+instalación de cero en otro equipo no se presentan como ejecutadas aquí.
+La revisión independiente de la nueva entrega corresponde a Esra; aprobar,
+fusionar y modificar producción siguen siendo acciones separadas.
+
+Validación realizada: 46 enlaces locales/anclas correctos en README y guía
+Render, cifras contrastadas con `champion_test.json`, contrato de 23 variables
+y estados vacíos de MLP/reentrenamiento comprobados; `src.drift --help`
+confirma el ejemplo con `--no-save`. Suite completa: 358 tests correctos,
+incluida integración MongoDB local aislada, con tres avisos gráficos existentes.
+Endpoint público consultado: HTTP 200 / `ok`. No se ejecutan nuevas escrituras
+en Atlas, entrenamiento ni una instalación limpia de Windows/macOS/Linux.
 
 ## Resumen: diez reglas para empezar un modelo
 
