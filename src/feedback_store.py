@@ -147,19 +147,37 @@ def _append(table: str, row: dict, directory: str | Path | None = None) -> None:
         _mongo().append(table, {column: row[column] for column in COLUMNS[table]})
         return
     path = storage_dir(directory) / f"{table}.csv"
-    columns = COLUMNS[table]
     try:
         if path.exists():
-            # A file written before an optional column existed keeps its header:
-            # the row is written without that column instead of misaligning it.
-            header = pd.read_csv(path, nrows=0).columns.tolist()
-            if header != columns and set(columns) - set(header) <= set(OPTIONAL_COLUMNS[table]):
-                columns = [c for c in columns if c in header]
-        pd.DataFrame([row], columns=columns).to_csv(
+            _add_optional_columns(path, table)
+        pd.DataFrame([row], columns=COLUMNS[table]).to_csv(
             path, mode="a", header=not path.exists(), index=False
         )
-    except OSError as error:
+    except (OSError, ValueError) as error:
         raise StorageError(f"No se ha podido guardar: {error}") from error
+
+
+def _add_optional_columns(path: Path, table: str) -> None:
+    """Adapt a file written before an optional column existed (called under the lock).
+
+    Old rows keep their values and get the new column empty; new rows can then
+    be stored with it (otherwise new sessions would be lost for the A/B test).
+    The file is rewritten to a temporary copy and replaced in one step, so a
+    failure leaves the original file untouched.
+    """
+    header = pd.read_csv(path, nrows=0).columns.tolist()
+    if header == COLUMNS[table]:
+        return
+    missing = set(COLUMNS[table]) - set(header)
+    if set(header) - set(COLUMNS[table]) or not missing <= set(OPTIONAL_COLUMNS[table]):
+        raise ValueError(f"{path.name} does not match the storage contract")
+    # Read as text so every stored value is written back exactly as it was.
+    old = pd.read_csv(path, dtype=str, keep_default_na=False)
+    for column in missing:
+        old[column] = ""
+    temporary = path.with_name(path.name + ".tmp")
+    old[COLUMNS[table]].to_csv(temporary, index=False)
+    os.replace(temporary, path)
 
 
 def _optional_as_text(frame: pd.DataFrame, table: str) -> pd.DataFrame:

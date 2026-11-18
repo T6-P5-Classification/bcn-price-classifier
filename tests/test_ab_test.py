@@ -212,3 +212,34 @@ def test_analysis_reads_the_stored_feedback(tmp_path):
     assert (result["champion"]["n"], result["champion"]["correct"]) == (2, 1)
     assert (result["challenger"]["n"], result["challenger"]["correct"]) == (1, 1)
     assert result["excluded"]["repeated"] == 1
+
+
+def test_new_sessions_count_after_an_old_csv_without_session_id(tmp_path):
+    """Review of #79: 100 new sessions per model stored after an old CSV file
+    must be counted, not dropped for lack of session_id."""
+    from src.cleaning import MODEL_FEATURES
+    from src.feedback_store import load_labelled, save_feedback, save_prediction
+
+    values = {c: 1 for c in MODEL_FEATURES}
+    values.update({"neighbourhood_cleansed": "el Raval", "neighbourhood_group_cleansed": "Ciutat Vella",
+                   "property_type": "Entire rental unit", "room_type": "Entire home/apt",
+                   "latitude": 41.38, "longitude": 2.17})
+    probs = {"Económico": 0.6, "Medio": 0.3, "Premium": 0.1}
+    thresholds = {"lower": 122.0, "upper": 250.0}
+
+    def answer(variant, name, session):
+        pid = save_prediction(values, "Económico", probs, model_name=name, model_version=f"{name}-v",
+                              thresholds=thresholds, variant=variant, session_id=session,
+                              directory=tmp_path)
+        save_feedback(pid, 100.0, directory=tmp_path)
+
+    answer("champion", "XGBoost", None)  # historical row, then the file loses the column
+    path = tmp_path / "predictions.csv"
+    pd.read_csv(path).drop(columns="session_id").to_csv(path, index=False)
+    for i in range(100):
+        answer("champion", "XGBoost", f"x{i}")
+        answer("challenger", "LightGBM", f"l{i}")
+    models = {CHAMPION: ("XGBoost", "XGBoost-v"), CHALLENGER: ("LightGBM", "LightGBM-v")}
+    result = compare_variants(load_labelled(tmp_path), models)
+    assert (result["champion"]["n"], result["challenger"]["n"]) == (100, 100)
+    assert result["excluded"]["no_session"] == 1
