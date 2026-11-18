@@ -319,13 +319,14 @@ volúmenes de tu ordenador. No se transfiere el dataset de entrenamiento.
 ### Estado verificado
 
 - URL: **https://bcn-price-classifier.onrender.com**.
-- Render Free, Docker, Frankfurt; código desplegado **`657afa5`**, modelo
-  `xgboost-trial34-6e9bc3e`. El código se integró posteriormente en `dev`;
-  eso no demuestra que el servicio haya cambiado de rama o de revisión.
-- Última rama observada en el servicio: **`feat/33-render-deployment`**;
-  **Auto-Deploy: Off**. Cambiar a `dev` tras merge es una operación remota
-  independiente, todavía no confirmada. Esta edición no la ejecuta.
-- Rama recomendada ahora: **`dev`**, ya integrada. `main` sería una opción de
+- Render Free, Docker, Frankfurt; modelo `xgboost-trial34-6e9bc3e`.
+  El despliegue inicial verificado utilizó **`657afa5`**. Posteriormente,
+  el usuario cambió Render a **`dev`** y confirmó que la app funciona; no se
+  ha verificado directamente el nuevo hash desplegado.
+- Rama actual **`dev`**, según confirmación del usuario. Última configuración
+  observada de **Auto-Deploy: Off**. El cambio remoto lo realizó el usuario,
+  no esta edición documental.
+- `main` sería una opción de
   entrega estable solo después de un acuerdo del equipo y de integrar allí
   la versión revisada. No fusionar ramas ni cambiar el servicio como efecto
   implícito de editar documentación.

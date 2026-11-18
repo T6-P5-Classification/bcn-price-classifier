@@ -4,17 +4,18 @@
 
 Rama `feat/33-render-deployment`, desde `dev` en `ec04c87`.
 **Demo:** https://bcn-price-classifier.onrender.com.
-Código desplegado: `657afa5`; las actualizaciones documentales posteriores no
-cambian esa identificación. Servicio Docker en Frankfurt, Render Free y Atlas
+Despliegue inicial verificado: `657afa5`. Después de la integración, el usuario
+cambió el servicio a `dev` y confirmó que funciona. No se ha comprobado
+directamente el hash del nuevo despliegue. Servicio Docker en Frankfurt, Render Free y Atlas
 Free. El flujo de predicción y respuesta se comprobó con un ejemplo ficticio;
 los registros permanecieron tras reiniciar la app, según confirmó el usuario.
 Detalle de las evidencias y sus límites al final de esta guía.
 
 El código y la documentación se integraron en `dev` en `24e443b`. La revisión
-humana de esa entrega se completó. La última rama observada en Render sigue
-siendo `feat/33-render-deployment`: se recomienda pasar el servicio a `dev`
-con permiso y verificar el nuevo despliegue. Ese cambio remoto no se ha
-confirmado y no se realiza en esta entrega documental. `main` solo debe usarse
+humana de esa entrega se completó. El usuario confirmó después el cambio
+de Render desde `feat/33-render-deployment` a `dev` y el funcionamiento de la
+app. Esta entrega solo documenta esa confirmación, no modifica Render.
+`main` solo debe usarse
 si el equipo acuerda y entrega allí una versión estable.
 
 ## Modelo distribuido
@@ -50,8 +51,8 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
 
 ## Configuración del despliegue
 
-- Render: repositorio del proyecto, rama `feat/33-render-deployment` durante
-  la prueba previa a revisión; cambiar a `dev` solo después de revisión y merge.
+- Render: repositorio del proyecto, rama `dev` según confirmación del usuario.
+  La prueba inicial previa a revisión usó `feat/33-render-deployment`.
   Docker, Frankfurt y plan Free.
   Sin disco ni extras de pago. Se comprobó una sesión; no hay prueba de carga
   que garantice capacidad con múltiples usuarios en sus 512 MB y 0,1 CPU.
@@ -62,9 +63,9 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
   entrenamiento al comando de inicio.
 - Autorizar en Atlas los rangos de IP de salida mostrados por Render para
   este servicio. La IP local no autoriza a Render. No abrir `0.0.0.0/0`.
-- Auto-Deploy: **Off**, observado en la captura de configuración. No cambiar
-  otros servicios. Tras merge, cambiar la rama a `dev` y desplegar requiere
-  autorización separada; no es consecuencia de solicitar revisión.
+- Auto-Deploy: **Off**, última configuración observada en la captura.
+  El cambio a `dev` fue una acción posterior del usuario. Futuros cambios de
+  rama o despliegue requieren autorización; no cambiar otros servicios.
 - Render Free puede suspenderse por inactividad. Atlas Free limita espacio
   y aplica condiciones de pausa. Persistencia no significa retención indefinida
   ni respaldo; no activar copias u opciones de pago sin autorización.
@@ -112,7 +113,7 @@ que sí requiere train. No se reevalúa el test reservado para esta entrega.
 
 Estas verificaciones no autorizan aprobación, merge ni cambio de rama del
 servicio. La entrega de despliegue ya se revisó e integró en `dev`; el cambio
-de rama del servicio sigue siendo una operación separada.
+de rama del servicio fue realizado y confirmado después por el usuario.
 
 ## Validación local realizada
 
@@ -131,6 +132,10 @@ de rama del servicio sigue siendo una operación separada.
   en la aplicación. No fue un defecto del artefacto.
 
 ## Validación remota realizada
+
+- Actualización posterior: el usuario confirmó que cambió Render a `dev` y
+  que la app funciona. No se afirma haber inspeccionado directamente la nueva
+  revisión desplegada ni repetido la prueba de persistencia tras ese cambio.
 
 - Capturas del usuario: Render indica despliegue Live de `657afa5` desde esta
   rama, plan Free, Docker y URL HTTPS indicada. Auto-Deploy quedó en Off.

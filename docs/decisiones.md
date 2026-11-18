@@ -29,8 +29,9 @@ los registros enlazados en Atlas; después confirmó que ambos seguían presente
 tras reiniciar la app. El agente comprobó directamente HTTP 200 y `ok` en
 `/_stcore/health`. Son evidencias distintas: el agente no tiene acceso directo
 a Atlas. No se han probado carga concurrente, retención prolongada ni backups.
-Auto-Deploy está desactivado; pasar el servicio a `dev` tras la revisión y el
-merge requiere una acción remota separada y autorizada. No se cambia ahora.
+Auto-Deploy estaba desactivado en la última captura. Tras revisión y merge,
+el usuario confirmó que pasó Render a `dev` y que funciona. El agente no cambió
+el servicio ni verificó directamente el nuevo hash desplegado.
 
 ## README actualizado de instalación, uso y despliegue (#41)
 
@@ -47,11 +48,11 @@ distribuido, A/B condicionado a otro artefacto, MLP/reentrenamiento no operativo
 test final ya registrado y salvedades del protocolo. No se inventan nuevas
 métricas ni se repite entrenamiento, selección o evaluación de test.
 
-Render sigue observado en la rama de despliegue. Tras la integración se
-recomienda usar `dev`; `main` solo si el equipo acuerda una entrega estable
-integrada allí. Cambiar la rama del servicio y desplegar requiere autorización
-separada. Esta documentación no realiza esa operación ni garantiza que haya
-ocurrido. Auto-Deploy permanece documentado como Off.
+El usuario confirmó que Render ya usa `dev` y funciona. Se actualiza ese estado
+sin atribuir al agente el cambio remoto ni afirmar un hash desplegado nuevo.
+`main` solo si el equipo acuerda una entrega estable integrada allí. Futuros
+cambios y despliegues requieren autorización separada. Auto-Deploy permanece
+documentado como Off según la última configuración observada.
 
 Verificación numerada y requisitos en el apartado «Pruebas y verificación»
 del README: enlaces y hechos contrastados con código/manifiesto/resultados,
