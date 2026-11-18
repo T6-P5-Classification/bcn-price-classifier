@@ -944,6 +944,28 @@ donde no está el modelo. Hay que decidir en equipo cómo llega el modelo
 (p. ej. versionar `models/app_model.joblib`, ≈ 1 MB, o descargarlo al
 arrancar).
 
+## Métricas en tiempo real del feedback (#25)
+
+La app consume `load_labelled()` y `load_predictions()` de la interfaz
+compartida de #23. No modifica la captura ni el backend de #27. El panel es
+opcional, se refresca cada diez segundos mientras la página está activa y
+permite actualización manual. Las respuestas se leen antes que las
+predicciones bajo la garantía actual de registros añadidos sin borrados.
+
+Se separan modelo, versión, variante y ambos umbrales. Se muestran predicciones,
+respuestas, cobertura, distribución predicha, accuracy, macro F1, errores
+extremos, informe por clase y matriz con filas reales y columnas predichas.
+Los scores usan solo feedback con precio declarado; los recuentos de tráfico
+usan todas las predicciones guardadas del grupo. Sin respuestas no hay scores.
+Se incluyen las tres clases con `zero_division=0` en macro F1.
+
+El consumidor comprueba unicidad, correspondencia de IDs/metadatos, etiquetas
+y clase del precio con los umbrales originales. Solo devuelve agregados.
+Las pruebas sintéticas cubren cálculos independientes, grupos, errores de
+lectura y flujo de app/almacenamiento. Las respuestas voluntarias no
+verificadas no sustituyen la evaluación del champion. Uso y límites en
+[feedback_metrics.md](feedback_metrics.md).
+
 ## MongoDB para predicciones y feedback (#27)
 
 Se conserva la interfaz de `src/feedback_store.py` y sus campos; la app no
@@ -1119,3 +1141,11 @@ cuentan, y los CSV y documentos MongoDB sin `session_id` siguen funcionando
 - Los modelos del artefacto se reentrenan con `python -m src.train_app_model`;
   al cambiar de versión empieza un experimento nuevo (las respuestas
   anteriores no se mezclan).
+
+## Revisión de integración del panel (#25)
+
+La integración de #25 con `dev` conserva el backend MongoDB/CSV y el reparto
+A/B existentes, además de los tests de las dos ramas. El panel sigue usando
+los lectores públicos y carga sus imports después del bootstrap de la raíz.
+La validación del panel utiliza CSV temporales; MongoDB real y refresco
+automático en navegador no se presentan como comprobados por esta entrega.

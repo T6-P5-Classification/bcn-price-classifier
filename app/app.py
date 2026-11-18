@@ -24,7 +24,8 @@ from app_logic import (
 )
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))  # for src.feedback_store
+sys.path.insert(0, str(ROOT))  # shared application modules
+from feedback_panel import render_feedback_panel  # noqa: E402
 from src.ab_test import assign_variant, challenger_share, variant_artifact  # noqa: E402
 from src.feedback_store import (  # noqa: E402
     StorageError, save_feedback, save_prediction, storage_backend,
@@ -304,6 +305,10 @@ with result_col:
                 except StorageError:
                     # Keep the result on screen and do not confirm a failed save.
                     st.warning("No hemos podido guardar tu respuesta. Inténtalo de nuevo más tarde.")
+
+with st.expander("Seguimiento del feedback"):
+    if st.checkbox("Mostrar métricas del feedback", key="show_feedback_metrics"):
+        render_feedback_panel()
 
 st.divider()
 st.caption(
