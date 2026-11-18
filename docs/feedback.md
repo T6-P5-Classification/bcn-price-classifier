@@ -83,7 +83,7 @@ límites y verificación en [mongodb.md](mongodb.md).
 | **#27** MongoDB (`src/database.py`) | Backend disponible a través de esta interfaz: colecciones `predictions` y `feedback`, mismos campos e índices únicos. No usar un bloqueo de archivos para coordinar instancias de MongoDB. |
 | **#34** Reentrenamiento | Los datos de #24. |
 | **#35** A/B testing | Pasar `variant="challenger"` a `save_prediction()` y comparar por `variant`. |
-| **#36** Data drift | `load_predictions()`: distribución de las 23 variables frente a train. |
+| **#36** Data drift | Implementado con snapshots en `src/drift.py`. Para las predicciones de la app: `drift_report(reference_features(), load_predictions())` compara sus 23 variables con train (las del formulario nunca están vacías). |
 
 ## Límites
 
