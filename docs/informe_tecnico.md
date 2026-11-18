@@ -1,7 +1,7 @@
 # Informe técnico — Barcelona Airbnb Price Classifier
 
-**Versión para revisión del equipo (#38), 17/11/2026.** Síntesis del código y
-los resultados integrados en `dev` (base `4b5f88d`). El equipo ha seleccionado
+**Versión para revisión del equipo (#38), 18/11/2026.** Síntesis del código y
+los resultados integrados en `dev` (base `24e443b`). El equipo ha seleccionado
 XGBoost como champion. La evaluación final del champion está registrada en `champion_test.json`.
 Este informe incorpora ese resultado existente sin volver a ejecutar test ni
 repetir entrenamientos de otros responsables.
@@ -250,23 +250,37 @@ estadística por la similitud de F1 entre validación y test.
 
 ## 8.1. Aplicación y operación
 
-La app básica integrada en `app/app.py` usa un formulario con las 23 entradas,
-traducción de clases y un artefacto local con modelo y metadatos. La app utiliza ahora el **champion XGBoost**, generado con los parámetros
-seleccionados y las comprobaciones de procedencia compartidas. El formulario
-conserva las combinaciones observadas de tipo/modalidad y valida los campos
-sin imputarlos silenciosamente. Las coordenadas proceden de las medianas por
-barrio de train, no de una dirección personal.
+La app Streamlit (`app/app.py`) pide las 23 entradas en un formulario, con
+las combinaciones observadas de tipo/modalidad y validación de los campos sin
+imputarlos silenciosamente. Las coordenadas proceden de las medianas por
+barrio de train, no de una dirección personal. Usa el **champion XGBoost**,
+generado con los parámetros seleccionados y las comprobaciones de procedencia
+compartidas. Muestra el segmento, su rango según los umbrales de train y las
+probabilidades estimadas; no se ha demostrado su calibración ni una mejora
+económica para el anfitrión.
 
-La app muestra segmento, rango según umbrales de train y probabilidades
-estimadas del modelo. No se ha demostrado calibración de esas probabilidades
-ni mejora económica. La lógica de formulario se prueba con datos y modelos
-sintéticos. La captura de predicciones y feedback está integrada mediante
-`src/feedback_store.py`: el usuario declara un precio, su clase se calcula
-con los umbrales de la predicción y solo se acepta una respuesta por
-predicción. El almacenamiento actual usa CSV locales ignorados por Git.
-MongoDB, métricas en tiempo real, reentrenamiento, drift y despliegue
-siguen sus propias entregas. Este informe no acredita MongoDB ni una URL
-pública operativos. El contrato está en [feedback.md](feedback.md).
+| Componente | Qué hace | Documentación |
+|---|---|---|
+| Predicciones y feedback (#23) | Guarda cada predicción con sus 23 entradas, modelo y versión. El usuario puede declarar el precio real; su clase se calcula con los umbrales de la predicción y solo se acepta una respuesta por predicción. | [feedback.md](feedback.md) |
+| MongoDB (#27) | Con `MONGODB_URI`, predicciones y respuestas se guardan en MongoDB con un índice único por `prediction_id`; sin él, en CSV locales con un aviso visible. Si MongoDB falla no se cambia a CSV en silencio. | [mongodb.md](mongodb.md) |
+| Docker (#26, #29) | Imagen de la app y `docker compose` con app y MongoDB. | README |
+| Métricas del feedback (#25) | Panel en la app con cobertura, accuracy, F1 macro, errores extremos y matriz de confusión por modelo y versión. Las respuestas son voluntarias y el precio no se verifica. | [feedback_metrics.md](feedback_metrics.md) |
+| Datos nuevos (#24) | `src/new_data.py` valida las respuestas con precio real y las prepara con el mismo target para reentrenar. El reentrenamiento automático (#34) no está implementado. | [decisiones](decisiones.md) |
+| Data drift (#36) | `src/drift.py` compara un snapshot nuevo con train mediante PSI por variable y genera alertas. Con el snapshot de junio, 21 de 23 variables son estables; las dos alertas (`minimum_nights`, `bedrooms`) se deben a cambios en los campos vacíos, no en los valores. | [decisiones](decisiones.md) |
+| A/B testing (#35) | Cada sesión recibe al azar el champion (XGBoost) o el challenger (LightGBM). El análisis cuenta una respuesta por sesión, solo de los dos modelos del artefacto, y exige al menos 100 sesiones por modelo antes de decidir. | [decisiones](decisiones.md) |
+| Tests de calidad (#30–#32) | Integridad de datos, funcionamiento del modelo y métricas mínimas (F1 macro, F1 por clase, margen sobre Dummy, errores extremos). | `tests/` |
+
+**Despliegue (#33).** La demo pública está en
+[bcn-price-classifier.onrender.com](https://bcn-price-classifier.onrender.com)
+(Render Free), con predicciones y respuestas en MongoDB Atlas Free. Se
+comprobó una predicción y una respuesta ficticias, y que ambas seguían
+guardadas tras reiniciar el servicio. El artefacto desplegado contiene solo
+el champion, así que en la demo no hay experimento A/B. Render Free se
+suspende por inactividad y la primera carga puede tardar. El modelo
+desplegado se incluye en el repositorio (`models/app_model.joblib`, con su
+manifiesto SHA-256), así que la imagen no entrena al construir ni al arrancar.
+Guía y verificaciones: [render.md](render.md).
+
 ## 8.2. Importancia de variables del champion
 
 La entrega #16 registra la importancia por permutación sobre validación
@@ -301,9 +315,12 @@ este modelo y snapshot. Los detalles reproducibles están en
   universales de calidad ni niveles absolutos de precio para siempre.
 - Este informe no fija costes numéricos por clase ni un criterio nuevo de
   aceptación. No se deducen requisitos a partir de los scores observados.
-- La app integra el champion y guarda feedback en CSV locales. Este informe
-  no acredita un despliegue público ni MongoDB. El disco efímero de un
-  despliegue no garantiza persistencia entre reinicios o redespliegues.
+- El feedback de la app es voluntario y el precio declarado no se verifica:
+  sus métricas describen a quienes responden, no sustituyen la evaluación
+  del modelo. Todavía no hay respuestas reales suficientes para medir el
+  modelo en uso ni para decidir el A/B testing.
+- El despliegue gratuito no tiene pruebas de carga, copias de seguridad ni
+  garantía de disponibilidad continua.
 
 ## 10. Reproducción y procedencia
 
@@ -319,7 +336,7 @@ La evidencia procede de los CSV `*_comparison.csv` y los JSON agregados de
 Los notebooks `04` a `08` conservan las salidas de ejecución. No se vuelven a
 entrenar todos los modelos para redactar este informe.
 
-- Base documental comprobada: `4b5f88d`.
+- Base documental comprobada: `24e443b`.
 - Snapshot: Barcelona 2026-09-17.
 - SHA-256 del raw: `226f5e6af36cc82286765cda452cbe9abd6fbd70415aaf2b23a07805f6fbf23e`.
 - CV común: cinco folds estratificados, shuffle=True, random_state=42.
@@ -345,13 +362,19 @@ por entregas todavía pendientes del resto del equipo.
 | Cuatro candidatos y comparación CV/OOF | Resultados registrados e integrados |
 | Champion | XGBoost, decisión registrada del equipo |
 | Evaluación final de test | Registrada: accuracy 0.764473, F1 macro 0.765056 |
-| App | Champion XGBoost integrado |
-| Feedback | Captura integrada, CSV local; MongoDB pendiente |
-| Despliegue público, drift y reentrenamiento | Sin evidencia operativa en esta base |
-| Control mínimo de calidad (#32) | Entrega separada; este informe no certifica aceptación |
+| App con champion XGBoost | Integrado |
+| Feedback y MongoDB | Integrado; CSV local si no hay `MONGODB_URI` |
+| Métricas del feedback en la app | Integrado |
+| Datos nuevos para reentrenar | Integrado (preparación); reentrenamiento automático pendiente (#34) |
+| Data drift | Integrado; ejecutado con el snapshot de junio |
+| A/B testing | Integrado; sin respuestas suficientes para decidir |
+| Tests de calidad mínima | Integrados |
+| Despliegue en Render con Atlas | Integrado; demo pública operativa |
+| Red neuronal MLP (#37) | En curso |
 
 Se incorporan las métricas finales existentes y se conserva la advertencia
-sobre exposición histórica de test. Al integrar MongoDB, monitorización y
-despliegue, actualizar este estado con evidencias. Las limitaciones no se
+sobre exposición histórica de test. Próximos pasos: reentrenamiento con
+sustitución solo si mejora (#34), recoger feedback real suficiente para leer
+el A/B testing y repetir el control de drift con cada snapshot nuevo. Las limitaciones no se
 eliminan porque el modelo cumpla el gap. La revisión humana del equipo sigue
 siendo necesaria antes de integrar el informe.

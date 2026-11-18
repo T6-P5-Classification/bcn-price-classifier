@@ -12,6 +12,7 @@ import src.feedback_store as feedback_module
 from src.feedback_store import (
     FEEDBACK_COLUMNS,
     PREDICTION_COLUMNS,
+    StorageError,
     load_feedback,
     load_labelled,
     load_predictions,
@@ -42,13 +43,53 @@ def store(tmp_path, predicted="Medio", **changes):
 # --- Contract -------------------------------------------------------------
 
 def test_columns_are_the_documented_contract():
-    assert PREDICTION_COLUMNS[:5] == ["prediction_id", "created_at", "model_name",
-                                      "model_version", "variant"]
-    assert PREDICTION_COLUMNS[5:28] == list(MODEL_FEATURES)
-    assert PREDICTION_COLUMNS[28:] == ["predicted_class", "prob_economico", "prob_medio",
+    assert PREDICTION_COLUMNS[:6] == ["prediction_id", "created_at", "model_name",
+                                      "model_version", "variant", "session_id"]
+    assert PREDICTION_COLUMNS[6:29] == list(MODEL_FEATURES)
+    assert PREDICTION_COLUMNS[29:] == ["predicted_class", "prob_economico", "prob_medio",
                                        "prob_premium", "threshold_lower", "threshold_upper"]
     assert FEEDBACK_COLUMNS == ["prediction_id", "created_at", "real_price", "real_class", "correct"]
     assert "price" not in PREDICTION_COLUMNS  # the model never receives the price
+
+
+def test_session_id_is_stored_and_optional(tmp_path):
+    pid = save_prediction(listing(), "Medio", PROBABILITIES, model_name="XGBoost",
+                          model_version="v", thresholds=THRESHOLDS, session_id="abc123",
+                          directory=tmp_path)
+    store(tmp_path)  # without a session (e.g. a script): stored as empty
+    stored = load_predictions(tmp_path).set_index("prediction_id")["session_id"]
+    assert stored[pid] == "abc123" and stored.isna().sum() == 1
+
+
+def test_files_written_before_session_id_keep_working(tmp_path):
+    """CSV files from before #35 have no session_id column. Review of #79: new
+    rows must still keep their session, so the file gets the column once
+    (empty for the old rows) and the old values are not changed."""
+    old = store(tmp_path)
+    path = tmp_path / "predictions.csv"
+    pd.read_csv(path).drop(columns="session_id").to_csv(path, index=False)
+    before = pd.read_csv(path, dtype=str, keep_default_na=False)
+    new = save_prediction(listing(), "Medio", PROBABILITIES, model_name="XGBoost",
+                          model_version="v", thresholds=THRESHOLDS, session_id="abc",
+                          directory=tmp_path)
+    save_feedback(new, 150.0, directory=tmp_path)
+    stored = load_predictions(tmp_path).set_index("prediction_id")
+    assert stored.index.tolist() == [old, new]
+    assert pd.isna(stored.loc[old, "session_id"]) and stored.loc[new, "session_id"] == "abc"
+    assert stored["latitude"].tolist() == [41.38, 41.38]  # columns not shifted
+    after = pd.read_csv(path, dtype=str, keep_default_na=False)
+    pd.testing.assert_frame_equal(after.iloc[:1][before.columns], before)  # old row unchanged
+    assert not list(tmp_path.glob("*.tmp")) and len(load_labelled(tmp_path)) == 1
+
+
+def test_a_file_with_unknown_columns_is_not_rewritten(tmp_path):
+    store(tmp_path)
+    path = tmp_path / "predictions.csv"
+    pd.read_csv(path).rename(columns={"beds": "camas"}).to_csv(path, index=False)
+    content = path.read_text()
+    with pytest.raises(StorageError):
+        store(tmp_path)
+    assert path.read_text() == content
 
 
 # --- Real class from the real price ---------------------------------------
