@@ -112,8 +112,11 @@ actualización completa del README prevista en #41.
 
 ### Modelo XGBoost
 
-Entrenamiento con 40 pruebas de Optuna, diagnósticos fuera de fold sobre
-train y test reservado sin evaluar: [ejecución y resultados](docs/xgboost.md).
+El notebook candidato usa 40 pruebas de Optuna y diagnósticos fuera de fold
+solo sobre train: [ejecución y resultados](docs/xgboost.md). La evaluación
+final posterior del champion ya está registrada en
+[champion_test.json](docs/results/champion_test.json); no se repite al
+ejecutar el candidato.
 La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuales.md#issue-20--xgboost-con-40-pruebas-de-optuna).
 
 ### App Streamlit (#15)
@@ -224,3 +227,7 @@ En la app, abrir **Seguimiento del feedback** y activar **Mostrar métricas del
 feedback**. El panel muestra agregados por modelo, versión, variante y umbrales,
 con actualización cada diez segundos y manual. Sin respuestas no presenta
 scores. [Uso, denominadores, pruebas y límites](docs/feedback_metrics.md).
+
+## Informe técnico
+
+[Problema, datos, evaluación y resultados del proyecto](docs/informe_tecnico.md).

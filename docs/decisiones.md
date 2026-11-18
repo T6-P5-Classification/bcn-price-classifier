@@ -840,6 +840,18 @@ se elige champion. No se guardan predicciones individuales ni se sustituye
 la tabla de métricas original. RF sigue identificado como reconstrucción
 local no idéntica al origen; los otros tres reproducen sus métricas OOF.
 
+
+## Síntesis técnica del proyecto (#38)
+
+`docs/informe_tecnico.md` reúne el contrato compartido y los resultados
+integrados de los cuatro candidatos. Conserva las métricas originales de
+RF y distingue su reconstrucción local no idéntica. Registra la elección
+de XGBoost de #22 sin repetir entrenamientos ni ejecutar el test reservado.
+Se incorpora el registro existente `champion_test.json` sin repetir la
+evaluación. Se distingue el champion integrado y el feedback CSV de MongoDB,
+monitorización y despliegue todavía pendientes. La evidencia procede de las guías,
+decisiones y artefactos agregados de los responsables.
+
 ## Champion en la app (#23)
 
 `src/train_app_model.py` entrena ahora el **champion XGBoost** de #22 en lugar
