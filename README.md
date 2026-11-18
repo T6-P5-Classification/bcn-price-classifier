@@ -118,10 +118,9 @@ La guía incluye efectos locales y [pasos de verificación](docs/pruebas_manuale
 
 ### App Streamlit (#15)
 
-Desde la raíz, con el entorno activo y el snapshot en `data/raw/`:
+Desde la raíz, con el entorno activo:
 
 ```bash
-python -m src.train_app_model   # crea models/app_model.joblib (no se sube a Git)
 streamlit run app/app.py
 ```
 
@@ -130,6 +129,11 @@ de Optuna seleccionada, ajustado con todo train (no usa test). Si existe
 `docs/results/champion_test.json`, la app muestra también su resultado en
 test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
 necesitan el snapshot.
+
+La demo distribuye el champion revisado en `models/app_model.joblib`: no
+requiere datos raw ni entrenamiento para abrirla. Procedencia, integridad y
+preparación de Render con Atlas: [docs/render.md](docs/render.md).
+El despliegue público sigue pendiente; todavía no hay una URL verificada.
 
 Cada predicción y, si el usuario lo indica, su precio real por noche se
 guardan en MongoDB cuando se configura `MONGODB_URI`. Sin esa configuración
@@ -153,6 +157,11 @@ lectura en [`docs/decisiones.md`](docs/decisiones.md#data-drift-snapshot-de-juni
 
 ### A/B testing (#35)
 
+Requiere un artefacto con ambos modelos. El distribuido para la demo (#33)
+contiene solo el champion: sirve XGBoost a todas las sesiones y no permite
+comparar variantes. El comando `python -m src.train_app_model` genera ambos
+modelos usando el snapshot; sustituir el archivo distribuido requiere revisión.
+
 Cada sesión de la app recibe al azar el **champion** (XGBoost) o el
 **challenger** (LightGBM, empate práctico en CV), y la predicción se guarda
 con su `variant` y un identificador anónimo de sesión. La proporción del challenger se cambia con `AB_SPLIT`
@@ -170,10 +179,9 @@ sesiones por modelo y una diferencia clara (intervalo del 95 %). Detalles en
 
 ### Docker (#29)
 
-El modelo no está en Git: se genera antes de construir la imagen.
+El champion revisado está incluido: construir y arrancar no entrenan modelos.
 
 ```bash
-python -m src.train_app_model
 docker build -t bcn-price-classifier .
 docker run -p 8501:8501 bcn-price-classifier   # http://localhost:8501
 ```
@@ -185,7 +193,6 @@ puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
 ### Docker Compose: app + base de datos (#26)
 
 ```bash
-python -m src.train_app_model   # el modelo no está en Git
 docker compose up --build       # app en http://localhost:8501
 docker compose down             # para; los datos se conservan
 ```

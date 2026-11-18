@@ -1,0 +1,16 @@
+{
+  "file": "app_model.joblib",
+  "sha256": "af9ceb209283563e84dc79b78af2c57e36ff7eaa97e113c2f90ce7d301ff4909",
+  "size_bytes": 1040255,
+  "model_name": "XGBoost",
+  "model_version": "xgboost-trial34-6e9bc3e",
+  "training_code_revision": "6e9bc3e",
+  "variants": ["champion"],
+  "dependencies": {
+    "numpy": "2.5.4",
+    "pandas": "3.1.1",
+    "scikit-learn": "1.9.1",
+    "xgboost": "3.4.1",
+    "joblib": "1.6.0"
+  }
+}
