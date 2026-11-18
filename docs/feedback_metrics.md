@@ -11,8 +11,9 @@ Desactivar la casilla deja de invocar el fragmento en los siguientes reruns.
 Se usan exclusivamente `load_labelled()` y `load_predictions()` de
 [`src/feedback_store.py`](../src/feedback_store.py), según el
 [contrato del equipo](feedback.md). No se leen CSV directamente ni se
-modifica el backend de #27. La futura implementación MongoDB conserva esas
-funciones públicas, columnas y `StorageError`.
+modifica el backend de #27. La implementación MongoDB integrada conserva esas funciones públicas,
+columnas y `StorageError`; la selección del backend sigue en el módulo
+compartido, sin consultas específicas en el panel.
 
 La lectura obtiene primero las respuestas y después las predicciones: el
 almacenamiento actual añade registros y no borra predicciones, por lo que
@@ -88,3 +89,12 @@ vuelve a entrenar, ajusta hiperparámetros ni usa test. Los CSV locales requiere
 un almacenamiento persistente para sobrevivir a redespliegues. El lector
 actual carga todo el historial disponible; si crece mucho, el backend debe
 acordar paginación o agregación sin cambiar el significado de los denominadores.
+
+## Integración con dev
+
+La actualización conserva la selección MongoDB/CSV, los avisos de almacenamiento
+y el reparto A/B del origen. El import del panel permanece después de añadir
+la raíz del repositorio a `sys.path`. Se conservan los tests de ambas ramas
+y se repite la suite tras resolver los conflictos. La prueba del panel usa
+CSV temporales; no se atribuye una ejecución MongoDB real ni un ensayo del
+refresco automático en navegador a esta comprobación.

@@ -4,13 +4,14 @@ Run from the repo root:  streamlit run app/app.py
 """
 
 import os
+import random
 import sys
+import uuid
 from pathlib import Path
 
 import joblib
 import pandas as pd
 import streamlit as st
-
 
 from app_logic import (
     BATHROOM_OPTIONS,
@@ -25,7 +26,10 @@ from app_logic import (
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))  # shared application modules
 from feedback_panel import render_feedback_panel  # noqa: E402
-from src.feedback_store import StorageError, save_feedback, save_prediction  # noqa: E402
+from src.ab_test import assign_variant, challenger_share, variant_artifact  # noqa: E402
+from src.feedback_store import (  # noqa: E402
+    StorageError, save_feedback, save_prediction, storage_backend,
+)
 
 # APP_MODEL_PATH lets the tests use a small synthetic model.
 MODEL_PATH = Path(
@@ -127,6 +131,18 @@ if not MODEL_PATH.exists():
     st.stop()
 
 artifact = load_artifact(str(MODEL_PATH))
+# A/B test (#35): one coin toss per session, kept while the session lasts.
+if "variant" not in st.session_state:
+    try:
+        share = challenger_share(artifact)
+    except ValueError as error:  # bad AB_SPLIT: log it and serve only the champion
+        print(f"A/B test disabled: {error}", file=sys.stderr)
+        share = 0.0
+    st.session_state["variant"] = assign_variant(random.random(), share)
+    # Anonymous, random id of this session: the A/B analysis counts each
+    # session once, so repeating the form does not inflate the evidence.
+    st.session_state["session_id"] = uuid.uuid4().hex
+model_artifact = variant_artifact(artifact, st.session_state["variant"])
 low, high = artifact["thresholds"]["lower"], artifact["thresholds"]["upper"]
 def euros(value: float) -> str:
     return f"{value:.2f}".replace(".", ",") + " €"
@@ -141,6 +157,16 @@ ranges = {
 
 st.title("🏠 ¿En qué rango de precio está tu alojamiento en Barcelona?", anchor=False)
 st.caption("Describe tu anuncio de Airbnb y lo clasificamos como Económico, Medio o Premium.")
+if storage_backend() == "csv":
+    st.info(
+        "Almacenamiento: CSV local. MongoDB no está configurado; "
+        "las predicciones y respuestas se guardarán en archivos locales."
+    )
+else:
+    st.caption(
+        "Almacenamiento configurado: MongoDB. "
+        "Si no está disponible, se avisará sin cambiar a CSV."
+    )
 
 form_col, result_col = st.columns([3, 2], gap="large")
 
@@ -214,14 +240,16 @@ with result_col:
             st.error(str(error))
             st.stop()
 
-        prediction, probabilities = predict(artifact, build_row(artifact, values))
+        prediction, probabilities = predict(model_artifact, build_row(artifact, values))
         # Every prediction is stored (#23): #25 metrics, #36 drift, #27 MongoDB.
         try:
             prediction_id = save_prediction(
                 values, prediction, probabilities.to_dict(),
-                model_name=artifact["model_name"],
-                model_version=artifact.get("model_version", "desconocida"),
+                model_name=model_artifact["model_name"],
+                model_version=model_artifact.get("model_version", "desconocida"),
                 thresholds=artifact["thresholds"],
+                variant=st.session_state["variant"],  # A/B test (#35)
+                session_id=st.session_state["session_id"],
             )
         except StorageError:
             prediction_id = None  # storage unavailable: still show the result
@@ -246,9 +274,9 @@ with result_col:
         )
         st.markdown("**Probabilidad por clase**")
         st.markdown(probability_bars(probabilities), unsafe_allow_html=True)
-        st.caption(customer_notice(artifact))
+        st.caption(customer_notice(model_artifact))
         with st.expander("ℹ️ Sobre el modelo"):
-            st.markdown(model_details(artifact))
+            st.markdown(model_details(model_artifact))
 
         st.subheader("💬 ¿Nos ayudas a mejorar?", anchor=False)
         if last["feedback"]:

@@ -132,8 +132,41 @@ test. Los tests de la app (`tests/test_app.py`) usan un modelo sintético y no
 necesitan el snapshot.
 
 Cada predicción y, si el usuario lo indica, su precio real por noche se
-guardan en `data/feedback/` (fuera de Git). Contrato para métricas, drift,
-reentrenamiento y MongoDB: [`docs/feedback.md`](docs/feedback.md).
+guardan en MongoDB cuando se configura `MONGODB_URI`. Sin esa configuración
+se usan CSV en `data/feedback/` (fuera de Git), con un aviso visible en la app.
+No hay migración automática ni cambio a CSV si MongoDB falla. Contrato:
+[`docs/feedback.md`](docs/feedback.md); configuración y comprobación:
+[`docs/mongodb.md`](docs/mongodb.md).
+
+### Data drift (#36)
+
+Compara las 23 variables de un snapshot nuevo de Inside Airbnb con las filas
+de **train** con las que se entrenó el modelo (PSI por variable; no usa
+precios ni test):
+
+```bash
+python -m src.drift data/raw/listings_2026-06-24.csv.gz
+```
+
+Resultado en `docs/results/drift_<fecha>.csv` y `.json`. Resultados y
+lectura en [`docs/decisiones.md`](docs/decisiones.md#data-drift-snapshot-de-junio-frente-a-train-36).
+
+### A/B testing (#35)
+
+Cada sesión de la app recibe al azar el **champion** (XGBoost) o el
+**challenger** (LightGBM, empate práctico en CV), y la predicción se guarda
+con su `variant` y un identificador anónimo de sesión. La proporción del challenger se cambia con `AB_SPLIT`
+(por defecto `0.5`; `0` desactiva el test). Para comparar los aciertos con
+el feedback recibido:
+
+```bash
+python -m src.ab_test
+```
+
+Solo cuenta las respuestas de los dos modelos del artefacto actual (modelo y
+versión) y **una por sesión**. Declara un ganador solo con al menos 100
+sesiones por modelo y una diferencia clara (intervalo del 95 %). Detalles en
+[`docs/decisiones.md`](docs/decisiones.md#ab-testing-champion-frente-a-challenger-35).
 
 ### Docker (#29)
 
@@ -148,6 +181,21 @@ docker run -p 8501:8501 bcn-price-classifier   # http://localhost:8501
 La imagen usa `requirements-app.txt` (solo lo que necesita la app, mismas
 versiones) y `.dockerignore` deja fuera datos, `.venv`, notebooks y docs. El
 puerto se puede cambiar con la variable `PORT` (p. ej. en Render).
+
+### Docker Compose: app + base de datos (#26)
+
+```bash
+python -m src.train_app_model   # el modelo no está en Git
+docker compose up --build       # app en http://localhost:8501
+docker compose down             # para; los datos se conservan
+```
+
+Arranca la app y MongoDB. Compose pasa `MONGODB_URI` a la app, que guarda en
+las colecciones `predictions` y `feedback`; el volumen `mongo-data` conserva
+los datos al parar o recrear contenedores. Los CSV anteriores del volumen
+`feedback-data` siguen intactos, pero no se migran automáticamente.
+`docker compose down -v` borra los datos de esos volúmenes: no usarlo para
+una parada normal. La configuración es local; no configura Atlas (#28).
 
 ## 🗂️ Estructura
 

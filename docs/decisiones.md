@@ -889,6 +889,28 @@ noche** que indica el anfitrión. El contrato completo está en
 **Límites:** respuestas voluntarias y no verificadas; en Render el disco no
 es permanente, por lo que para conservar datos hace falta MongoDB.
 
+## Datos nuevos para reentrenar (#24)
+
+`src/new_data.py` recoge las predicciones con precio real a través de
+`src.feedback_store.load_labelled()` (CSV o MongoDB según configuración) y no
+lee ni escribe los archivos de almacenamiento directamente.
+
+- **Entrada:** las 23 variables de `MODEL_FEATURES` y `real_price`; se conserva
+  el precio, no solo la clase, para recalcular umbrales con datos nuevos.
+- **Validación:** `validate_new_data()` exige las 23 variables y un precio real
+  finito mayor que 0.
+- **Umbrales:** `compute_new_thresholds()` calcula `lower` y `upper` con
+  `compute_target_thresholds()`. Si no hay suficientes precios nuevos, se
+  reutilizan los umbrales guardados en la predicción.
+- **Preparación:** `prepare_new_data()` devuelve una tabla con las 23
+  variables, `real_price` y el target derivado del precio; con
+  `include_target=False` devuelve solo variables y precio, sin calcular ni
+  exigir umbrales ni consistencia de históricos. `new_training_data()`
+  separa `(X, y)`. Con almacenamiento vacío devuelve tablas vacías con las
+  columnas del contrato.
+- **Límites:** las respuestas son voluntarias y el precio no se verifica; el
+  reentrenamiento y la sustitución automática quedan en #34.
+
 ## Dockerfile de la app (#29)
 
 - **Base `python:3.12-slim`** (versión del proyecto) y `libgomp1`, que XGBoost
@@ -943,3 +965,187 @@ Las pruebas sintéticas cubren cálculos independientes, grupos, errores de
 lectura y flujo de app/almacenamiento. Las respuestas voluntarias no
 verificadas no sustituyen la evaluación del champion. Uso y límites en
 [feedback_metrics.md](feedback_metrics.md).
+
+## MongoDB para predicciones y feedback (#27)
+
+Se conserva la interfaz de `src/feedback_store.py` y sus campos; la app no
+incluye consultas ni credenciales directamente. Las operaciones MongoDB se
+encapsulan en `src/database.py`. Con `MONGODB_URI` configurado y sin un
+`directory=` explícito se usa MongoDB; sin URI se mantienen los CSV y la app
+lo indica visiblemente, según lo acordado. Un directorio explícito permite
+aislar pruebas y consumidores CSV locales. `FEEDBACK_DIR` solo configura CSV.
+
+MongoDB guarda las colecciones `predictions` y `feedback` con índices únicos
+en `prediction_id`. Se conserva la respuesta inicial ante envíos simultáneos.
+Los fallos se exponen como el mismo `StorageError`, sin mensajes internos ni
+credenciales, y no provocan una sustitución silenciosa por CSV. El artefacto
+y el protocolo de modelado no cambian. PyMongo ya estaba en las dependencias
+generales; se añade la misma versión a las dependencias mínimas de Docker.
+
+Los CSV anteriores no se copian, mezclan ni borran automáticamente. Atlas,
+credenciales remotas y configuración de servicios de pago quedan fuera de
+esta entrega (#28). Se mantiene el contrato para las tareas de métricas,
+reentrenamiento, variantes y drift sin implementar esas tareas aquí. Las
+lecturas siguen cargando el historial completo; grandes volúmenes requieren
+otra estrategia. No se promete entrega exactamente una vez ante cortes de
+red, aunque la unicidad evita dos respuestas para una predicción.
+
+Método, limitaciones, efectos de cada comprobación y pasos numerados:
+[MongoDB](mongodb.md). La automatización del Project no está integrada en
+esta base y no se modifica su configuración desde esta issue.
+
+## Docker Compose: app + base de datos (#26)
+
+`docker-compose.yml` arranca dos servicios:
+
+- **`app`**: la imagen de #29. Mantiene `FEEDBACK_DIR=/app/data/feedback`
+  en el volumen `feedback-data` para conservar los CSV anteriores. Desde #27,
+  `MONGODB_URI` selecciona MongoDB para las nuevas operaciones; esos CSV no se
+  migran ni mezclan automáticamente. Arranca cuando MongoDB está sano
+  (`depends_on: service_healthy`).
+- **`mongo`**: `mongo:7.0.14` (versión exacta), datos en el volumen
+  `mongo-data`, healthcheck con `mongosh` y **sin puerto publicado**: solo la
+  app puede conectarse, por la red interna de Compose
+  (`MONGODB_URI=mongodb://mongo:27017/bcn_price_classifier`).
+
+**Alcance:** #26 preparó el servidor y la conexión; #27 integra el guardado
+desde la interfaz `src/feedback_store.py` (ver `docs/feedback.md`). Para uso local sin
+autenticación; en un despliegue real (#28, MongoDB Atlas) la URI con
+credenciales iría en un `.env` fuera de Git.
+
+**Comprobado en local:** ambos servicios `healthy`, app con HTTP 200, la app
+alcanza `mongo:27017`, MongoDB sin puertos publicados, y una predicción con
+respuesta sigue guardada tras `docker compose down` y `up`. Tests estáticos
+en `tests/test_docker_compose.py`.
+
+## Tests de métricas mínimas (#32)
+
+`src/model_quality.py` define los mínimos y `quality_problems()`, que devuelve
+los que no se cumplen; `tests/test_metrics.py` los comprueba sobre los
+resultados guardados (sin datos raw, sin reentrenar y sin volver a mirar el
+test reservado).
+
+| Métrica | Mínimo | Champion (CV / test) |
+|---|---|---|
+| F1 macro | ≥ 0,70 | 0,763 / 0,765 |
+| F1 de cada clase | ≥ 0,60 | Medio 0,66 / 0,67 (la más baja) |
+| Errores extremos (Económico ↔ Premium) | ≤ 3 % | 1,0 % / 1,2 % |
+| Gap train − validación | < 0,05 | 0,048 / — |
+| Margen sobre Dummy (F1 macro) | ≥ 0,30 | 0,60 / — |
+
+Se comprueban el champion en validación cruzada y en la evaluación única de
+test, que todos los modelos comparados superan el mínimo de F1, el gap y el
+margen sobre Dummy, y, si existe, el artefacto de la app.
+
+**Qué son estos mínimos:** una **alarma de regresión**, no un criterio de
+selección (el champion se eligió en #22 con la regla acordada). Se fijaron
+**después** de ver los resultados, algo por debajo de ellos, para detectar un
+modelo claramente peor (p. ej. tras reentrenar en #34, que puede reutilizar
+`quality_problems()` antes de sustituir el modelo) sin fallar por pequeñas
+diferencias aleatorias. El gap mantiene el límite acordado de 0,05.
+
+**Entradas inválidas:** `quality_problems()` no da por bueno un modelo con
+métricas imposibles. Rechaza valores no numéricos, no finitos o booleanos
+(`True` contaría como F1 = 1), F1 y tasas fuera de [0, 1] y un gap fuera de
+[−1, 1]. Así, un error de cálculo no puede dejar pasar un modelo en #34.
+## Data drift: snapshot de junio frente a train (#36)
+
+**Qué se decidió:** `src/drift.py` comprueba si los anuncios de otro snapshot
+se parecen a los que aprendió el modelo. **Referencia:** las filas de
+**train** del snapshot de septiembre (las de test se descartan). **Datos
+nuevos:** el snapshot preparado con la misma limpieza y las 23
+`MODEL_FEATURES`; si falta alguna variable, se detiene (cambio de esquema).
+No usa precios ni predicciones: avisa antes de que llegue feedback.
+
+| Paso | Cómo |
+|---|---|
+| Medida | **PSI** por variable: compara el % de anuncios por intervalo. Numéricas: deciles de train; con 10 valores distintos o menos (sí/no, recuentos pequeños), un intervalo por valor más «valor nuevo», porque con deciles un 0/1 desequilibrado quedaría en un solo intervalo. Categóricas: una categoría por intervalo, más «categoría nueva» (no vista en train). Los vacíos tienen su propio intervalo. |
+| Lectura | < 0,10 estable; 0,10–0,25 moderado; ≥ 0,25 alto. Son umbrales habituales, no un test estadístico. |
+| Alerta | **ALERTA** si una variable es «alto»; **AVISO** si una de las 3 más importantes del champion (#16: `minimum_nights`, `accommodates`, `latitude`) es «moderado». |
+| Detalle | También se calcula el PSI **sin vacíos**: separa si cambian los valores o solo con qué frecuencia el campo está vacío. Si un lado no tiene ningún valor, la alerta dice «valores no comparables». |
+
+**Resultado (junio 2026 = 24/06, 13.355 anuncios con precio, frente a
+10.088 de train):** 21 de 23 variables estables (PSI ≤ 0,012). Dos alertas:
+
+| Variable | PSI | PSI sin vacíos | Vacíos train → junio |
+|---|---:|---:|---:|
+| `minimum_nights` (clave) | 1,08 | 0,00 | 15 % → 0 % |
+| `bedrooms` | 0,90 | 0,03 | 0 % → 12 % |
+
+**Lectura:** los **valores** apenas cambian; lo que cambia es **qué campos
+vienen vacíos**. Ya ocurre en el raw: en septiembre faltan `minimum_nights`
+(13 %) y nunca `bedrooms`; en junio, al revés (17 % sin `bedrooms`, la
+mayoría habitaciones privadas, y ningún 0). Parece un cambio en cómo Inside
+Airbnb publica esos campos, no en los alojamientos; **la causa no está
+verificada**. No afecta a la app (el formulario siempre rellena las dos
+variables), pero sí a un reentrenamiento con otro snapshot (#24, #34): antes
+hay que revisar cómo se imputan esos vacíos. Es el tipo de cambio que esta
+comprobación debe detectar.
+
+**Validación:** `tests/test_drift.py` con datos sintéticos: misma población
+sin alertas, desplazamiento numérico, cambio de proporciones, categoría nueva,
+vacíos separados de valores, variable totalmente vacía, sí/no muy desequilibrado, referencia constante, intervalos vacíos, umbrales, aviso solo en
+variables clave y esquema incompleto. Resultado guardado en
+`docs/results/drift_2026-06-24.csv` y `.json` (con el sha256 de ambos raw).
+
+**Límites:**
+- Junio es **anterior** a train: se usa para probar el mecanismo; con el
+  próximo snapshot se ejecuta el mismo comando.
+- Muchos anuncios están en los dos snapshots: las muestras no son
+  independientes y el cambio puede parecer menor.
+- El PSI no dice si el modelo acierta menos; eso exige precios reales (#25).
+- Con muestras pequeñas (p. ej. las primeras predicciones de la app) el PSI
+  sale alto por azar: hace falta un volumen razonable antes de leerlo.
+
+## A/B testing: champion frente a challenger (#35)
+
+**Qué se decidió:** la app compara el **champion XGBoost** (#22) con un
+**challenger LightGBM**, el segundo de la comparación con F1 de validación
+prácticamente igual (0,7630 frente a 0,7631). Es una pregunta abierta que
+la CV no resuelve: ¿acierta alguno más con anuncios nuevos?
+
+| Paso | Cómo |
+|---|---|
+| Challenger | LightGBM con los parámetros de su prueba de Optuna seleccionada (#21), ajustado con **todo train** en `src/train_app_model.py`. Se comprueba contra `lightgbm_comparison.csv` y que se seleccionó con el mismo raw. **No se evalúa en test**: el test se usó una vez, solo para el champion. |
+| Asignación | Al abrir la app, sorteo aleatorio por sesión (`AB_SPLIT`, por defecto 0,5). Se guarda en `st.session_state`: la misma sesión siempre usa el mismo modelo. Sin challenger en el artefacto, o con un `AB_SPLIT` inválido, solo responde el champion. |
+| Registro | Cada predicción guarda `variant`, `model_name`, `model_version` y un `session_id` aleatorio y anónimo (contrato de `docs/feedback.md`). `session_id` es opcional: los registros anteriores se leen con la sesión vacía. Un CSV anterior se adapta una vez al guardar la siguiente predicción (columna vacía para las filas antiguas, sin cambiar sus valores) para que las nuevas sesiones sí se guarden. |
+| Experimento | Solo cuentan las respuestas de los **dos modelos del artefacto** (nombre y versión de champion y challenger). Las de otros modelos o versiones (p. ej. el provisional) quedan fuera y se informa cuántas. |
+| Unidad | La **sesión**, porque el modelo se asigna por sesión. Cuenta la primera respuesta de cada sesión; las repeticiones y las respuestas sin `session_id` quedan fuera y se informa cuántas. Sin esto, una persona que repite el formulario 100 veces parecería 100 personas. |
+| Análisis | `src/ab_test.py` compara el % de aciertos (`correct`) de cada variante con un intervalo del 95 % de la diferencia (ajuste de Agresti-Caffo, estable con pocos datos o aciertos del 0 %/100 %). |
+| Decisión | Menos de **100 sesiones** por modelo: datos insuficientes. Intervalo que incluye 0: sin diferencia, se mantiene el champion. Solo si excluye 0 a favor del challenger se propone sustituirlo, como **decisión del equipo** tras revisar los mínimos de calidad (#32); no hay cambio automático. |
+
+**Por qué 100 sesiones:** con 100 por grupo, la incertidumbre de la
+diferencia ronda ±12 puntos; por debajo, casi cualquier diferencia puede ser
+azar. Es un umbral práctico, no un cálculo de potencia. Con la diferencia
+observada en CV (≈0,01 puntos), distinguir los dos modelos exigiría muchísimas
+más respuestas: el resultado esperable es «sin diferencia».
+
+**Validación:** tests con feedback sintético (`tests/test_ab_test.py`) y de
+la app completa (`tests/test_app.py`): reparto ≈50 %, sesión estable,
+`variant` guardada, detalles del challenger sin métricas de test del champion,
+y decisiones con pocos datos, diferencia pequeña, diferencia clara y 100 %
+frente a 100 %. Tras la revisión: respuestas antiguas de otra versión no
+cambian un empate, 100 repeticiones de dos sesiones cuentan como dos
+sesiones, 100 sesiones nuevas por modelo guardadas tras un CSV antiguo sí
+cuentan, y los CSV y documentos MongoDB sin `session_id` siguen funcionando
+(tests de integración con MongoDB 7.0.14 local). Imagen Docker construida y ambos modelos predicen dentro.
+
+**Límites:**
+- Aún **no hay usuarios reales**: se entrega el mecanismo, no un resultado.
+- La sesión es la del navegador: al recargar la página se sortea de nuevo,
+  así que una misma persona puede ver ambos modelos.
+- El feedback es voluntario y el precio no se verifica: quien responde puede
+  no representar a todos los anfitriones.
+- Se compara el acierto de la clase, no el F1 macro; con pocas respuestas
+  por clase el F1 sería muy inestable.
+- Los modelos del artefacto se reentrenan con `python -m src.train_app_model`;
+  al cambiar de versión empieza un experimento nuevo (las respuestas
+  anteriores no se mezclan).
+
+## Revisión de integración del panel (#25)
+
+La integración de #25 con `dev` conserva el backend MongoDB/CSV y el reparto
+A/B existentes, además de los tests de las dos ramas. El panel sigue usando
+los lectores públicos y carga sus imports después del bootstrap de la raíz.
+La validación del panel utiliza CSV temporales; MongoDB real y refresco
+automático en navegador no se presentan como comprobados por esta entrega.
