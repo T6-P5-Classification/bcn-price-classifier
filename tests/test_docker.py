@@ -18,7 +18,7 @@ def pins(path):
 def test_app_requirements_use_the_project_versions():
     project, app = pins("requirements.txt"), pins("requirements-app.txt")
     app["xgboost"] = app.pop("xgboost-cpu")  # CPU-only build of the same package
-    assert set(app) == {"pandas", "numpy", "scikit-learn", "xgboost", "joblib", "streamlit"}
+    assert set(app) == {"pandas", "numpy", "scikit-learn", "xgboost", "joblib", "streamlit", "pymongo"}
     for package, version in app.items():
         assert project[package] == version, package
 
